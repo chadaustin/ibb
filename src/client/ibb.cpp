@@ -32,8 +32,6 @@ bool openServerConnection(SOCKET* s) {
         return false;
     }
 
-    send(*s, "W", 1, 0);
-    closesocket(*s);
     return true;
 }
 
@@ -79,8 +77,16 @@ int main(int argc, const char* argv[]) {
         }
     }
 
-    
+    send(connection, "HereIsACommand", 14, 0);
+    for (;;) {
+        char buffer[1024];
+        int bytes = recv(connection, buffer, 1024, 0);
+        if (0 == bytes) {
+            break;
+        }
+        printf("%*s", bytes, buffer);
+    }
 
-    printf("hello\n");
+    closesocket(connection);
     return 0;
 }
