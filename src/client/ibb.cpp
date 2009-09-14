@@ -4,59 +4,42 @@
 #include <winsock2.h>
 #include <shellapi.h>
 #include <stdio.h>
+#include "common.h"
 
-// int(md5.md5('ibb').hexdigest()[-4:], 16)
-const int IBB_PORT = 26830;
+bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[]) {
+    sendString(connection, L"version: 1\n");
 
-int error(const char* msg) {
-    fprintf(stderr, "ibb *** error: %s\n", msg);
-    return 1;
-}
+    sendString(connection, L"cwd: ");
+    WCHAR current_directory[MAX_PATH] = {0};
+    GetCurrentDirectoryW(MAX_PATH, current_directory);
+    sendString(connection, current_directory);
+    sendString(connection, L"\n");
 
-bool openServerConnection(SOCKET* s) {
-    *s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (*s == INVALID_SOCKET) {
-        // TODO: print error code
-        error("Failed to create socket");
-        return false;
+    for (int i = 0; i < argc; ++i) {
+        sendString(connection, L"arg: ");
+        sendString(connection, argv[i]);
+        sendString(connection, L"\n");
     }
 
-    sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    address.sin_port = htons(IBB_PORT);
-    
-    int result = connect(*s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-    if (result) {
-        error("Failed to connect to IBB server");
-        return false;
+    sendString(connection, L"build\n");
+
+    for (;;) {
+        WCHAR buffer[1024];
+        int bytes = recv(connection, reinterpret_cast<char*>(buffer), sizeof(buffer), 0);
+        if (0 == bytes) {
+            break;
+        }
+        if (SOCKET_ERROR == bytes) {
+            error("Broken connection");
+            break;
+        }
+        wprintf(L"%*s", bytes / sizeof(WCHAR), buffer);
     }
 
     return true;
 }
 
-bool startServer() {
-    WCHAR python_path[MAX_PATH + 1] = {0};
-    LONG size = sizeof(python_path);
-    LONG success = RegQueryValueW(
-        HKEY_LOCAL_MACHINE,
-        L"SOFTWARE\\Python\\PythonCore\\3.1\\InstallPath",
-        python_path,
-        &size);
-    if (success) {
-        // TODO: print error
-        fprintf(stderr, "ibb *** failed to locate Python 3.1\n");
-        return false;
-    }
-
-    wcsncat(python_path, L"\\python.exe", MAX_PATH);
-
-    // TODO: print error code
-    HINSTANCE result = ShellExecuteW(0, L"open", python_path, L"", NULL, SW_SHOW);
-    return result > reinterpret_cast<HINSTANCE>(32);
-}
-
-int main(int argc, const char* argv[]) {
+int wmain(int argc, const wchar_t* argv[]) {
     WSADATA wsadata;
     if (0 != WSAStartup(2, &wsadata)) {
         return error("Failed to initialize winsock");
@@ -77,16 +60,19 @@ int main(int argc, const char* argv[]) {
         }
     }
 
-    send(connection, "HereIsACommand", 14, 0);
-    for (;;) {
-        char buffer[1024];
-        int bytes = recv(connection, buffer, 1024, 0);
-        if (0 == bytes) {
-            break;
-        }
-        printf("%*s", bytes, buffer);
+    if (!sendBuild(connection, argc, argv)) {
+        return error("Failed to submit build");
     }
 
     closesocket(connection);
     return 0;
+}
+
+// hack around mingw's lack of wmain support
+int main() {
+    int argc;
+    WCHAR** argv = CommandLineToArgvW(
+        GetCommandLineW(),
+        &argc);
+    return wmain(argc, const_cast<const wchar_t**>(argv));
 }
