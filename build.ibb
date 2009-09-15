@@ -1,0 +1,15 @@
+import ibb
+
+sources = [
+    ibb.File('src/client/ibb.cpp'),
+    ibb.File('src/client/common.cpp'),
+]
+dest = [
+    ibb.File('ibb.exe'),
+]
+
+ibb.Command(
+    dest,
+    sources,
+    'g++ -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp src/client/common.cpp -lws2_32')
+

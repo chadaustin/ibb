@@ -8,9 +8,9 @@ IBB_PORT = 26830
 class StopServer(Exception):
     pass
 
-class CommandHandler(object):
+class CommandHandler:
     def __init__(self):
-        self.systems = []
+        self.systems = {}
     
     def handle(self, cwd, args, wfile):
         if len(args) == 1:
@@ -19,9 +19,16 @@ class CommandHandler(object):
         elif '--stop' in args:
             raise StopServer
         else:
-            wfile.write('Building a thing?\n')
+            self.build(cwd, args[1:])
 
-class BuildServer(object):
+    def build(self, cwd, targets):
+        try:
+            buildSystem = self.systems[cwd]
+        except KeyError:
+            buildSystem = self.systems[cwd] = BuildSystem(cwd)
+        buildSystem.build(targets)
+
+class BuildServer:
     def __init__(self):
         self.commandHandler = CommandHandler()
     
@@ -66,24 +73,49 @@ class BuildServer(object):
         self.server = socketserver.TCPServer(("localhost", IBB_PORT), Handler)
         self.server.serve_forever()
 
-class TrayIcon(object):
+class TrayIcon:
     pass
 
-class BuildSystem(object):
+class NodeFactory:
     def __init__(self, directory):
-        self.trayIcon = TrayIcon()
+        self.directory = directory
 
-class Node(object):
+nodeFactory = []
+
+class BuildSystem:
+    def __init__(self, directory):
+        self.directory = directory
+        self.nodeFactory = NodeFactory(directory)
+        self.readBuildScript()
+
+    def readBuildScript(self):
+        nodeFactory.append(self.nodeFactory)
+        
+        globals = {}
+        locals = {}
+        with open(os.path.join(self.directory, 'build.ibb')) as f:
+            print(nodeFactory)
+            exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
+
+        nodeFactory.pop()
+
+    def build(self, targets):
+        pass
+
+class Node:
     pass
 
 class Directory(Node):
     pass
 
 class File(Node):
-    pass
-
+    def __init__(self, path):
+        self.path = path
+        nodeFactory[0].register(self)
+        
 class Command(Node):
-    pass
+    def __init__(self, targets, sources, commands):
+        pass
 
 if __name__ == '__main__':
     BuildServer().main()
