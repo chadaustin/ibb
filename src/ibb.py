@@ -80,42 +80,46 @@ class NodeFactory:
     def __init__(self, directory):
         self.directory = directory
 
-nodeFactory = []
+class BuildConfig:
+    def __init__(self, nodeFactory):
+        self.nodeFactory = nodeFactory
+
+    def File(self, *args, **kw):
+        return File(self.nodeFactory, *args, **kw)
+    def Command(self, *args, **kw):
+        return Command(self.nodeFactory, *args, **kw)
 
 class BuildSystem:
     def __init__(self, directory):
         self.directory = directory
         self.nodeFactory = NodeFactory(directory)
+        self.buildConfig = BuildConfig(self.nodeFactory)
         self.readBuildScript()
 
     def readBuildScript(self):
-        nodeFactory.append(self.nodeFactory)
-        
-        globals = {}
+        globals = {'build': self.buildConfig}
         locals = {}
         with open(os.path.join(self.directory, 'build.ibb')) as f:
-            print(nodeFactory)
             exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
-
-        nodeFactory.pop()
 
     def build(self, targets):
         pass
 
 class Node:
-    pass
+    def __init__(self, nodeFactory):
+        self.nodeFactory = nodeFactory
 
 class Directory(Node):
     pass
 
 class File(Node):
-    def __init__(self, path):
+    def __init__(self, nodeFactory, path):
+        Node.__init__(self, nodeFactory)
         self.path = path
-        nodeFactory[0].register(self)
         
 class Command(Node):
-    def __init__(self, targets, sources, commands):
-        pass
+    def __init__(self, nodeFactory, targets, sources, commands):
+        Node.__init__(self, nodeFactory)
 
 if __name__ == '__main__':
     BuildServer().main()
