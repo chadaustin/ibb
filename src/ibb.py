@@ -83,11 +83,15 @@ class NodeFactory:
 class BuildConfig:
     def __init__(self, nodeFactory):
         self.nodeFactory = nodeFactory
+        self.commands = []
 
     def File(self, *args, **kw):
         return File(self.nodeFactory, *args, **kw)
+    
     def Command(self, *args, **kw):
-        return Command(self.nodeFactory, *args, **kw)
+        command = Command(self.nodeFactory, *args, **kw)
+        self.commands.append(command)
+        return command
 
 class BuildSystem:
     def __init__(self, directory):
@@ -103,7 +107,8 @@ class BuildSystem:
             exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
 
     def build(self, targets):
-        pass
+        for command in self.buildConfig.commands:
+            command.execute()
 
 class Node:
     def __init__(self, nodeFactory):
@@ -118,8 +123,15 @@ class File(Node):
         self.path = path
         
 class Command(Node):
-    def __init__(self, nodeFactory, targets, sources, commands):
+    def __init__(self, nodeFactory, targets, sources, command):
         Node.__init__(self, nodeFactory)
+        self.targets = targets
+        self.sources = sources
+        self.command = command
+
+    def execute(self):
+        print('executing', self.command)
+        print('returned', os.system(self.command))
 
 if __name__ == '__main__':
     BuildServer().main()

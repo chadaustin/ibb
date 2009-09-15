@@ -9,5 +9,5 @@ dest = [
 build.Command(
     dest,
     sources,
-    'g++ -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp src/client/common.cpp -lws2_32')
+    'g++-3.exe -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp src/client/common.cpp -lws2_32')
 
