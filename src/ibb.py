@@ -1,6 +1,7 @@
 import os
 import socketserver
 import io
+import string
 
 # int(md5.md5('ibb').hexdigest()[-4:], 16)
 IBB_PORT = 26830
@@ -121,17 +122,74 @@ class File(Node):
     def __init__(self, nodeFactory, path):
         Node.__init__(self, nodeFactory)
         self.path = path
-        
+
+def flatten(ls):
+    out = []
+    for l in ls:
+        if isinstance(l, list):
+            out.extend(flatten(l))
+        else:
+            out.append(l)
+    return out
+
+class IBBFormatter(string.Formatter):
+    def vformat(self, format_string, args, kwargs, recursion_depth=2):
+        if recursion_depth < 0:
+            raise ValueError('Max string recursion exceeded')
+        result = []
+        for literal_text, field_name, format_spec, conversion in \
+                self.parse(format_string):
+
+            # output the literal text
+            if literal_text:
+                result.append(literal_text)
+
+            # if there's a field, output it
+            if field_name is not None:
+                # this is some markup, find the object and do
+                #  the formatting
+
+                # given the field_name, find the object it references
+                #  and the argument it came from
+                obj, arg_used = self.get_field(field_name, args, kwargs)
+
+                # do any conversion on the resulting object
+                obj = self.convert_field(obj, conversion)
+
+                # expand the format spec, if needed
+                format_spec = self.vformat(format_spec, args, kwargs,
+                                           recursion_depth-1)
+
+                # format the object and append to the result
+                result.append(self.format_field(obj, format_spec))
+
+        if any(isinstance(r, list) for r in result):
+            return flatten(result)
+        else:
+            return ''.join(result)
+
+    def format_field(self, value, format_spec):
+        if isinstance(value, list):
+            return value
+        else:
+            return original_format(value, format_spec)
+
+original_format = format
+def format(ls, args):
+    return flatten([
+        IBBFormatter().format(elt, **args)
+        for elt in ls])
+
 class Command(Node):
     def __init__(self, nodeFactory, targets, sources, command):
         Node.__init__(self, nodeFactory)
         self.targets = targets
         self.sources = sources
-        self.command = command
+        self.command = formatCommand(command, dict(targets=targets, sources=sources))
 
     def execute(self):
         print('executing', self.command)
-        print('returned', os.system(self.command))
+        print('returned', os.system(' '.join(self.command)))
 
 if __name__ == '__main__':
     BuildServer().main()

@@ -2,12 +2,11 @@ sources = [
     build.File('src/client/ibb.cpp'),
     build.File('src/client/common.cpp'),
 ]
-dest = [
+targets = [
     build.File('ibb.exe'),
 ]
 
 build.Command(
-    dest,
+    targets,
     sources,
-    'g++-3.exe -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp src/client/common.cpp -lws2_32')
-
+    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32'])
