@@ -11,24 +11,24 @@ class FlattenTests(unittest.TestCase):
 
         self.assertEqual(['foo', 'bar', 'baz'], ibb.flatten([['foo', ['bar', 'baz']]]))
 
-class FormattingTests(unittest.TestCase):
+class SubstTests(unittest.TestCase):
     def test_empty_list(self):
-        self.assertEqual([], ibb.format([], {}))
+        self.assertEqual([], ibb.subst([], {}))
             
     def test_literal_strings(self):
-        self.assertEqual(['foo', 'bar'], ibb.format(['foo', 'bar'], {}))
+        self.assertEqual(['foo', 'bar'], ibb.subst(['foo', 'bar'], {}))
 
     def test_replacement_strings(self):
         self.assertEqual(
             ['foo', 'bar'],
-            ibb.format(
+            ibb.subst(
                 ['{v1}', '{v2}'],
                 {'v1': 'foo', 'v2': 'bar'}))
 
-    def test_format_passes_lists_through(self):
+    def test_subst_passes_lists_through(self):
         self.assertEqual(
             ['begin', 'ibb.exe', 'ibb.cpp', 'ibbcommon.cpp', 'end'],
-            ibb.format(
+            ibb.subst(
                 ['begin', '{targets[0]}', '{sources}', 'end'],
                 {'targets': ['ibb.exe'],
                  'sources': ['ibb.cpp', 'ibbcommon.cpp']}))

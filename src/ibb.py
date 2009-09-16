@@ -172,23 +172,31 @@ class IBBFormatter(string.Formatter):
         if isinstance(value, list):
             return value
         else:
-            return original_format(value, format_spec)
+            return format(value, format_spec)
 
-original_format = format
-def format(ls, args):
-    return flatten([
+def subst(ls, args):
+    return flatten(
         IBBFormatter().format(elt, **args)
-        for elt in ls])
+        for elt in ls)
 
 class Command(Node):
     def __init__(self, nodeFactory, targets, sources, command):
         Node.__init__(self, nodeFactory)
         self.targets = targets
         self.sources = sources
-        self.command = formatCommand(command, dict(targets=targets, sources=sources))
+
+        def fmt(c):
+            if isinstance(c, Node):
+                return c.path
+            else:
+                return c
+        self.command = subst(command, dict(
+            targets=list(map(fmt, targets)),
+            sources=list(map(fmt, sources))))
 
     def execute(self):
         print('executing', self.command)
+        print('executing', ' '.join(self.command))
         print('returned', os.system(' '.join(self.command)))
 
 if __name__ == '__main__':
