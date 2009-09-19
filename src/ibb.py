@@ -2,6 +2,7 @@ import os
 import socketserver
 import io
 import string
+import time
 
 # int(md5.md5('ibb').hexdigest()[-4:], 16)
 IBB_PORT = 26830
@@ -26,7 +27,10 @@ class CommandHandler:
         try:
             buildSystem = self.systems[cwd]
         except KeyError:
+            print('loading build')
             buildSystem = self.systems[cwd] = BuildSystem(cwd)
+        else:
+            print('reusing build')
         buildSystem.build(targets)
 
 class BuildServer:
@@ -34,6 +38,14 @@ class BuildServer:
         self.commandHandler = CommandHandler()
     
     def handle(self, rfile, wfile):
+        start = time.time()
+        try:
+            self.__handle(rfile, wfile)
+        finally:
+            elapsed = time.time() - start
+            print('Build took', elapsed, 'seconds')
+
+    def __handle(self, rfile, wfile):
         rfile = io.TextIOWrapper(rfile, encoding='UTF-16LE')
         wfile = io.TextIOWrapper(wfile, encoding='UTF-16LE')
 
@@ -70,6 +82,7 @@ class BuildServer:
     def main(self):
         class Handler(socketserver.StreamRequestHandler):
             def handle(handler):
+                print('got connection')
                 return self.handle(handler.rfile, handler.wfile)
         self.server = socketserver.TCPServer(("localhost", IBB_PORT), Handler)
         self.server.serve_forever()
@@ -84,15 +97,17 @@ class NodeFactory:
 class BuildConfig:
     def __init__(self, nodeFactory):
         self.nodeFactory = nodeFactory
-        self.commands = []
+        self.nodes = []
 
     def File(self, *args, **kw):
-        return File(self.nodeFactory, *args, **kw)
+        node = File(self.nodeFactory, *args, **kw)
+        self.nodes.append(node)
+        return node
     
     def Command(self, *args, **kw):
-        command = Command(self.nodeFactory, *args, **kw)
-        self.commands.append(command)
-        return command
+        node = Command(self.nodeFactory, *args, **kw)
+        #self.nodes.append(node)
+        return node
 
 class BuildSystem:
     def __init__(self, directory):
@@ -108,12 +123,16 @@ class BuildSystem:
             exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
 
     def build(self, targets):
-        for command in self.buildConfig.commands:
-            command.execute()
+        for node in self.buildConfig.nodes:
+            node.build()
 
 class Node:
     def __init__(self, nodeFactory):
         self.nodeFactory = nodeFactory
+        self.dependencies = []
+
+    def addDependency(self, node):
+        self.dependencies.append(node)
 
 class Directory(Node):
     pass
@@ -122,6 +141,13 @@ class File(Node):
     def __init__(self, nodeFactory, path):
         Node.__init__(self, nodeFactory)
         self.path = path
+        self.dirty = True
+
+    def build(self):
+        if self.dirty:
+            for dep in self.dependencies:
+                dep.execute()
+            self.dirty = False
 
 def flatten(ls):
     out = []
@@ -182,8 +208,11 @@ def subst(ls, args):
 class Command(Node):
     def __init__(self, nodeFactory, targets, sources, command):
         Node.__init__(self, nodeFactory)
-        self.targets = targets
-        self.sources = sources
+
+        for node in targets:
+            node.addDependency(self)
+        for node in sources:
+            self.addDependency(node)
 
         def fmt(c):
             if isinstance(c, Node):
