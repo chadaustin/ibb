@@ -4,9 +4,10 @@
 #include <winsock2.h>
 #include <shellapi.h>
 #include <stdio.h>
+#include <time.h>
 #include "common.h"
 
-bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[]) {
+bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[], clock_t start) {
     sendString(connection, L"version: 1\n");
 
     sendString(connection, L"cwd: ");
@@ -23,6 +24,9 @@ bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[]) {
 
     sendString(connection, L"build\n");
 
+    printf("Build sent in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
+    fflush(stdout);
+
     for (;;) {
         WCHAR buffer[1024];
         int bytes = recv(connection, reinterpret_cast<char*>(buffer), sizeof(buffer), 0);
@@ -36,10 +40,15 @@ bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[]) {
         wprintf(L"%*s", bytes / sizeof(WCHAR), buffer);
     }
 
+    printf("Result recieved in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
+    fflush(stdout);
+
     return true;
 }
 
 int wmain(int argc, const wchar_t* argv[]) {
+    clock_t start = clock();
+
     WSADATA wsadata;
     if (0 != WSAStartup(2, &wsadata)) {
         return error("Failed to initialize winsock");
@@ -49,6 +58,9 @@ int wmain(int argc, const wchar_t* argv[]) {
         cleanup_t() {}
         ~cleanup_t() { WSACleanup(); }
     } cleanup;
+
+    printf("Started winsock in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
+    fflush(stdout);
 
     SOCKET connection;
     if (!openServerConnection(&connection)) {
@@ -60,11 +72,17 @@ int wmain(int argc, const wchar_t* argv[]) {
         }
     }
 
-    if (!sendBuild(connection, argc, argv)) {
+    printf("Opened connection in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
+    fflush(stdout);
+
+    if (!sendBuild(connection, argc, argv, start)) {
         return error("Failed to submit build");
     }
 
     closesocket(connection);
+
+    printf("Socket closed in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
+    fflush(stdout);
     return 0;
 }
 
