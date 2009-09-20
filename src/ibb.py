@@ -4,6 +4,8 @@ import io
 import string
 import time
 
+import win32all
+
 # int(md5.md5('ibb').hexdigest()[-4:], 16)
 IBB_PORT = 26830
 
@@ -108,6 +110,36 @@ class BuildConfig:
         node = Command(self.nodeFactory, *args, **kw)
         #self.nodes.append(node)
         return node
+
+class DirectoryWatcher:
+    def __init__(self, directory, onChange):
+        self.directory = directory
+
+        self.directoryHandle = win32all.CreateFileW(
+            self.directory,
+            win32all.GENERIC_READ,
+            win32all.FILE_SHARE_READ | win32all.FILE_SHARE_WRITE | win32all.FILE_SHARE_DELETE,
+            None,
+            win32all.OPEN_EXISTING,
+            win32all.FILE_FLAG_BACKUP_SEMANTICS,
+            None)
+
+    def dispose(self):
+        win32all.CloseHandle(self.directoryHandle)
+
+        #self.thread = threading.Thread(target=self.thread)
+        #self.thread.setDaemon(True)
+        #self.thread.start()
+
+    def thread(self):
+        while True:
+            boolResult = ReadDirectoryChangesW(
+                self.directoryHandle,
+                buffer,
+                sizeof(buffer),
+                bWatchSubtree=True,
+                dwNotifyFilter=FILE_NOTIFY_CHANGE_ALL,
+                )
 
 class BuildSystem:
     def __init__(self, directory):
