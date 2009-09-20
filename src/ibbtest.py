@@ -4,6 +4,7 @@ import string
 import tempfile
 import unittest
 import queue
+import threading
 
 import ibb
 
@@ -48,6 +49,8 @@ class DirectoryWatcherTests(unittest.TestCase):
         self.watcher.dispose()
         shutil.rmtree(self.directory)
 
+        self.assertEqual(1, threading.active_count())
+
     def onChange(self, change_type, absolute_path):
         self.changes.put((change_type, absolute_path))
 
@@ -61,6 +64,52 @@ class DirectoryWatcherTests(unittest.TestCase):
             ('Create', os.path.join(self.directory, 'newfile')),
             change)
         
+    def test_records_file_change(self):
+        with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
+            pass
+        with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
+            f.write(b'hi')
+        print('getting')
+        changes = [
+            self.changes.get(),
+            self.changes.get() ]
+        print('get')
+        self.assertEqual(
+            [('Create', os.path.join(self.directory, 'newfile')),
+             ('Change', os.path.join(self.directory, 'newfile'))],
+            changes)
+
+    def test_records_file_deletion(self):
+        with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
+            pass
+        os.unlink(os.path.join(self.directory, 'newfile'))
+        print('getting')
+        changes = [
+            self.changes.get(),
+            self.changes.get() ]
+        print('get')
+        self.assertEqual(
+            [('Create', os.path.join(self.directory, 'newfile')),
+             ('Delete', os.path.join(self.directory, 'newfile'))],
+            changes)
+
+    def test_records_file_rename(self):
+        with open(os.path.join(self.directory, 'oldfile'), 'wb') as f:
+            pass
+        os.rename(
+            os.path.join(self.directory, 'oldfile'),
+            os.path.join(self.directory, 'newfile'))
+        print('getting')
+        changes = [
+            self.changes.get(),
+            self.changes.get(),
+            self.changes.get() ]
+        print('get')
+        self.assertEqual(
+            [ ('Create',    os.path.join(self.directory, 'oldfile')),
+              ('RenameOld', os.path.join(self.directory, 'oldfile')),
+              ('RenameNew', os.path.join(self.directory, 'newfile')) ],
+            changes)
 
 if __name__ == '__main__':
     unittest.main()

@@ -130,7 +130,7 @@ class DirectoryWatcher:
         self.overlapped.hEvent = win32all.CreateEvent(None, False, False, None)
 
         self.started = threading.Event()
-        self.stopped = threading.Event()
+        self.stopped = win32all.CreateEvent(None, False, False, None)
 
         self.thread = threading.Thread(target=self.watchForChanges)
         self.thread.setDaemon(True)
@@ -139,8 +139,8 @@ class DirectoryWatcher:
         self.started.wait()
 
     def dispose(self):
-        self.stopped.set()
-        #self.thread.join()
+        win32all.SetEvent(self.stopped)
+        self.thread.join()
         
         win32all.CloseHandle(self.directoryHandle)
         win32all.CloseHandle(self.overlapped.hEvent)
@@ -168,7 +168,12 @@ class DirectoryWatcher:
 
             self.started.set()
 
-            
+            waited = win32all.WaitForMultipleObjects(
+                [self.stopped, self.overlapped.hEvent],
+                False,
+                win32all.INFINITE)
+            if waited == win32all.WAIT_OBJECT_0:
+                return
 
             numBytes = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
             print('numBytes', numBytes)
