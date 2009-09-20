@@ -1,7 +1,8 @@
+import io
 import os
 import socketserver
-import io
 import string
+import threading
 import time
 
 import win32all
@@ -114,6 +115,7 @@ class BuildConfig:
 class DirectoryWatcher:
     def __init__(self, directory, onChange):
         self.directory = directory
+        self.onChange = onChange
 
         self.directoryHandle = win32all.CreateFileW(
             self.directory,
@@ -121,25 +123,69 @@ class DirectoryWatcher:
             win32all.FILE_SHARE_READ | win32all.FILE_SHARE_WRITE | win32all.FILE_SHARE_DELETE,
             None,
             win32all.OPEN_EXISTING,
-            win32all.FILE_FLAG_BACKUP_SEMANTICS,
+            win32all.FILE_FLAG_BACKUP_SEMANTICS | win32all.FILE_FLAG_OVERLAPPED,
             None)
 
+        self.overlapped = win32all.OVERLAPPED()
+        self.overlapped.hEvent = win32all.CreateEvent(None, False, False, None)
+
+        self.started = threading.Event()
+        self.stopped = threading.Event()
+
+        self.thread = threading.Thread(target=self.watchForChanges)
+        self.thread.setDaemon(True)
+        self.thread.start()
+
+        self.started.wait()
+
     def dispose(self):
+        self.stopped.set()
+        #self.thread.join()
+        
         win32all.CloseHandle(self.directoryHandle)
+        win32all.CloseHandle(self.overlapped.hEvent)
 
-        #self.thread = threading.Thread(target=self.thread)
-        #self.thread.setDaemon(True)
-        #self.thread.start()
-
-    def thread(self):
+    def watchForChanges(self):
+        bufferSize = 1 << 16 # ???
+        buffer = win32all.AllocateReadBuffer(bufferSize)
+        
+        FILE_NOTIFY_CHANGE_ALL = win32all.FILE_NOTIFY_CHANGE_FILE_NAME | \
+                                 win32all.FILE_NOTIFY_CHANGE_DIR_NAME | \
+                                 win32all.FILE_NOTIFY_CHANGE_ATTRIBUTES | \
+                                 win32all.FILE_NOTIFY_CHANGE_SIZE | \
+                                 win32all.FILE_NOTIFY_CHANGE_LAST_WRITE | \
+                                 win32all.FILE_NOTIFY_CHANGE_LAST_ACCESS | \
+                                 win32all.FILE_NOTIFY_CHANGE_CREATION | \
+                                 win32all.FILE_NOTIFY_CHANGE_SECURITY
+        
         while True:
-            boolResult = ReadDirectoryChangesW(
+            win32all.ReadDirectoryChangesW(
                 self.directoryHandle,
                 buffer,
-                sizeof(buffer),
-                bWatchSubtree=True,
-                dwNotifyFilter=FILE_NOTIFY_CHANGE_ALL,
-                )
+                True, # watch subdirectories
+                FILE_NOTIFY_CHANGE_ALL,
+                self.overlapped)
+
+            self.started.set()
+
+            
+
+            numBytes = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
+            print('numBytes', numBytes)
+
+            mapping = {
+                win32all.FILE_ACTION_ADDED: 'Create',
+                win32all.FILE_ACTION_REMOVED: 'Delete',
+                win32all.FILE_ACTION_MODIFIED: 'Change',
+                win32all.FILE_ACTION_RENAMED_OLD_NAME: 'RenameOld',
+                win32all.FILE_ACTION_RENAMED_NEW_NAME: 'RenameNew',
+            }
+
+            # TODO: handle global reset (buffer too small to contain change list)
+            for action, fileName in win32all.FILE_NOTIFY_INFORMATION(buffer, numBytes):
+                print(action, fileName)
+                self.onChange(mapping[action], os.path.join(self.directory, fileName))
+            
 
 class BuildSystem:
     def __init__(self, directory):

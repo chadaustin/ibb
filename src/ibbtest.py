@@ -1,7 +1,9 @@
-import unittest
+import os
+import shutil
 import string
 import tempfile
-import shutil
+import unittest
+import queue
 
 import ibb
 
@@ -39,16 +41,26 @@ class DirectoryWatcherTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.mkdtemp()
         self.watcher = ibb.DirectoryWatcher(self.directory, self.onChange)
+        self.changes = queue.Queue()
 
     def tearDown(self):
+        print('dispose')
         self.watcher.dispose()
         shutil.rmtree(self.directory)
 
-    def onChange(self, absolute_path):
-        self.changes.append(absolute_path)
+    def onChange(self, change_type, absolute_path):
+        self.changes.put((change_type, absolute_path))
 
     def test_records_file_creation(self):
-        pass
+        with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
+            pass
+        print('getting')
+        change = self.changes.get()
+        print('get')
+        self.assertEqual(
+            ('Create', os.path.join(self.directory, 'newfile')),
+            change)
+        
 
 if __name__ == '__main__':
     unittest.main()
