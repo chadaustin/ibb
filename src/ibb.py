@@ -4,6 +4,7 @@ import socketserver
 import string
 import threading
 import time
+import queue
 
 import win32all
 
@@ -113,6 +114,9 @@ class BuildConfig:
         return node
 
 class DirectoryWatcher:
+    BUFFER_SIZE = 1 << 16 # the maximum value allowed over SMB
+    DIE = 'DIE'
+    
     def __init__(self, directory, onChange):
         self.directory = directory
         self.onChange = onChange
@@ -126,29 +130,39 @@ class DirectoryWatcher:
             win32all.FILE_FLAG_BACKUP_SEMANTICS | win32all.FILE_FLAG_OVERLAPPED,
             None)
 
+        self.bufferQueue = queue.Queue()
+
         self.overlapped = win32all.OVERLAPPED()
         self.overlapped.hEvent = win32all.CreateEvent(None, False, False, None)
 
         self.started = threading.Event()
         self.stopped = win32all.CreateEvent(None, False, False, None)
 
-        self.thread = threading.Thread(target=self.watchForChanges)
-        self.thread.setDaemon(True)
-        self.thread.start()
+        self.changeThread = threading.Thread(target=self.watchForChanges)
+        self.changeThread.setDaemon(True)
 
+        self.processThread = threading.Thread(target=self.processChangeEvents)
+        self.processThread.setDaemon(True)
+
+        self.changeThread.start()
+        self.processThread.start()
+
+        # Once we know the thread has called ReadDirectoryChangesW
+        # once, we will not miss change notifications.  The change
+        # queue is created on the first call to ReadDirectoryChangesW.
         self.started.wait()
 
     def dispose(self):
         win32all.SetEvent(self.stopped)
-        self.thread.join()
+        self.bufferQueue.put(self.DIE)
+
+        self.changeThread.join()
+        self.processThread.join()
         
         win32all.CloseHandle(self.directoryHandle)
         win32all.CloseHandle(self.overlapped.hEvent)
 
     def watchForChanges(self):
-        bufferSize = 1 << 16 # ???
-        buffer = win32all.AllocateReadBuffer(bufferSize)
-        
         FILE_NOTIFY_CHANGE_ALL = win32all.FILE_NOTIFY_CHANGE_FILE_NAME | \
                                  win32all.FILE_NOTIFY_CHANGE_DIR_NAME | \
                                  win32all.FILE_NOTIFY_CHANGE_ATTRIBUTES | \
@@ -159,6 +173,7 @@ class DirectoryWatcher:
                                  win32all.FILE_NOTIFY_CHANGE_SECURITY
         
         while True:
+            buffer = win32all.AllocateReadBuffer(self.BUFFER_SIZE)
             win32all.ReadDirectoryChangesW(
                 self.directoryHandle,
                 buffer,
@@ -176,17 +191,28 @@ class DirectoryWatcher:
                 return
 
             numBytes = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
+            if numBytes == 0:
+                # TODO: handle global reset (buffer too small to contain change list)
+                raise OverflowError()
             print('numBytes', numBytes)
 
-            mapping = {
-                win32all.FILE_ACTION_ADDED: 'Create',
-                win32all.FILE_ACTION_REMOVED: 'Delete',
-                win32all.FILE_ACTION_MODIFIED: 'Change',
-                win32all.FILE_ACTION_RENAMED_OLD_NAME: 'RenameOld',
-                win32all.FILE_ACTION_RENAMED_NEW_NAME: 'RenameNew',
-            }
+            self.bufferQueue.put((numBytes, buffer))
 
-            # TODO: handle global reset (buffer too small to contain change list)
+    def processChangeEvents(self):
+        mapping = {
+            win32all.FILE_ACTION_ADDED: 'Create',
+            win32all.FILE_ACTION_REMOVED: 'Delete',
+            win32all.FILE_ACTION_MODIFIED: 'Change',
+            win32all.FILE_ACTION_RENAMED_OLD_NAME: 'RenameOld',
+            win32all.FILE_ACTION_RENAMED_NEW_NAME: 'RenameNew',
+        }
+
+        while True:
+            next = self.bufferQueue.get()
+            if next is self.DIE:
+                return
+
+            numBytes, buffer = next
             for action, fileName in win32all.FILE_NOTIFY_INFORMATION(buffer, numBytes):
                 print(action, fileName)
                 self.onChange(mapping[action], os.path.join(self.directory, fileName))
