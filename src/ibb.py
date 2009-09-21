@@ -116,7 +116,7 @@ class BuildConfig:
 class DirectoryWatcher:
     DIE = 'DIE'
     
-    def __init__(self, directory, onChange):
+    def __init__(self, directory, onFileChange, onResetAll):
         self.BUFFER_SIZE = 1 << 22 # 4 MiB
 
         # if directory is SMB:
@@ -124,7 +124,8 @@ class DirectoryWatcher:
         # else:
         
         self.directory = directory
-        self.onChange = onChange
+        self.onFileChange = onFileChange
+        self.onResetAll = onResetAll
 
         self.directoryHandle = win32all.CreateFileW(
             self.directory,
@@ -208,9 +209,10 @@ class DirectoryWatcher:
 
             lastReadSize = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
             if lastReadSize == 0:
-                # TODO: handle global reset (buffer too small to contain change list)
-                # for manual testing: easy to induce: add a sleep
-                raise OverflowError()
+                # This is easy to induce: add a sleep to the
+                # ReadDirectoryChangesW loop or make the buffer size
+                # tiny.
+                self.onResetAll()
             print('numBytes', lastReadSize)
 
             self.bufferQueue.put(buffer[:lastReadSize].tobytes())
@@ -231,7 +233,7 @@ class DirectoryWatcher:
 
             for action, fileName in win32all.FILE_NOTIFY_INFORMATION(next, len(next)):
                 print(action, fileName)
-                self.onChange(mapping[action], os.path.join(self.directory, fileName))
+                self.onFileChange(mapping[action], os.path.join(self.directory, fileName))
             
 
 class BuildSystem:

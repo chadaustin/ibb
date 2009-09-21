@@ -41,7 +41,10 @@ class SubstTests(unittest.TestCase):
 class DirectoryWatcherTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.mkdtemp()
-        self.watcher = ibb.DirectoryWatcher(self.directory, self.onChange)
+        self.watcher = ibb.DirectoryWatcher(
+            self.directory,
+            onFileChange=self.onChange,
+            onResetAll=self.onResetAll)
         self.changes = queue.Queue()
 
     def tearDown(self):
@@ -53,6 +56,9 @@ class DirectoryWatcherTests(unittest.TestCase):
 
     def onChange(self, change_type, absolute_path):
         self.changes.put((change_type, absolute_path))
+
+    def onResetAll(self):
+        pass
 
     def test_records_file_creation(self):
         with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
