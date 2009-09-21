@@ -114,10 +114,15 @@ class BuildConfig:
         return node
 
 class DirectoryWatcher:
-    BUFFER_SIZE = 1 << 16 # the maximum value allowed over SMB
     DIE = 'DIE'
     
     def __init__(self, directory, onChange):
+        self.BUFFER_SIZE = 1 << 22 # 4 MiB
+
+        # if directory is SMB:
+        # self.BUFFER_SIZE = 1 << 16 # the maximum value allowed over SMB
+        # else:
+        
         self.directory = directory
         self.onChange = onChange
 
@@ -137,6 +142,15 @@ class DirectoryWatcher:
 
         self.started = threading.Event()
         self.stopped = win32all.CreateEvent(None, False, False, None)
+
+        # Why two threads?  If the internal ReadDirectoryChangesW
+        # change buffer fills, we lose change notifications.  In that
+        # case, we have to reset the build system and rescan
+        # everything for dependencies, which we'd like to avoid.  One
+        # thread is responsible for calling ReadDirectoryChangesW as
+        # fast as it can, queuing work for the thread to consume.  If
+        # we temporarily queue 500 MB of change events, no
+        # problem...
 
         self.changeThread = threading.Thread(target=self.watchForChanges)
         self.changeThread.setDaemon(True)
@@ -171,6 +185,8 @@ class DirectoryWatcher:
                                  win32all.FILE_NOTIFY_CHANGE_LAST_ACCESS | \
                                  win32all.FILE_NOTIFY_CHANGE_CREATION | \
                                  win32all.FILE_NOTIFY_CHANGE_SECURITY
+
+        lastReadSize = 0
         
         while True:
             buffer = win32all.AllocateReadBuffer(self.BUFFER_SIZE)
@@ -190,13 +206,14 @@ class DirectoryWatcher:
             if waited == win32all.WAIT_OBJECT_0:
                 return
 
-            numBytes = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
-            if numBytes == 0:
+            lastReadSize = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
+            if lastReadSize == 0:
                 # TODO: handle global reset (buffer too small to contain change list)
+                # for manual testing: easy to induce: add a sleep
                 raise OverflowError()
-            print('numBytes', numBytes)
+            print('numBytes', lastReadSize)
 
-            self.bufferQueue.put((numBytes, buffer))
+            self.bufferQueue.put(buffer[:lastReadSize].tobytes())
 
     def processChangeEvents(self):
         mapping = {
@@ -212,8 +229,7 @@ class DirectoryWatcher:
             if next is self.DIE:
                 return
 
-            numBytes, buffer = next
-            for action, fileName in win32all.FILE_NOTIFY_INFORMATION(buffer, numBytes):
+            for action, fileName in win32all.FILE_NOTIFY_INFORMATION(next, len(next)):
                 print(action, fileName)
                 self.onChange(mapping[action], os.path.join(self.directory, fileName))
             
