@@ -106,15 +106,31 @@ class DirectoryWatcherTests(unittest.TestCase):
             os.path.join(self.directory, 'oldfile'),
             os.path.join(self.directory, 'newfile'))
         print('getting')
-        changes = [
-            self.changes.get(),
-            self.changes.get(),
-            self.changes.get() ]
+        changes = [self.changes.get() for _ in range(3)]
         print('get')
         self.assertEqual(
             [ ('Create',    os.path.join(self.directory, 'oldfile')),
               ('RenameOld', os.path.join(self.directory, 'oldfile')),
               ('RenameNew', os.path.join(self.directory, 'newfile')) ],
+            changes)
+
+    def test_records_directory_rename(self):
+        dirpath = os.path.join(self.directory, 'subdir')
+        os.mkdir(dirpath)
+        with open(os.path.join(dirpath, 'file'), 'wb') as f:
+            pass
+
+        newdirpath = os.path.join(self.directory, 'newdir')
+        os.rename(dirpath, newdirpath)
+
+        changes = [self.changes.get() for _ in range(5)]
+        self.assertEqual(
+            [ ('Create',    os.path.join(self.directory, 'subdir')),
+              ('Create',    os.path.join(self.directory, 'subdir', 'file')),
+              ('Change',    os.path.join(self.directory, 'subdir')),
+              ('RenameOld', os.path.join(self.directory, 'subdir')),
+              ('RenameNew', os.path.join(self.directory, 'newdir')),
+            ],
             changes)
 
 if __name__ == '__main__':

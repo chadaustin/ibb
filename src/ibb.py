@@ -94,7 +94,7 @@ class BuildServer:
 class TrayIcon:
     pass
 
-class NodeFactory:
+class FileSystem:
     def __init__(self, directory):
         self.directory = directory
 
@@ -239,8 +239,9 @@ class DirectoryWatcher:
 class BuildSystem:
     def __init__(self, directory):
         self.directory = directory
-        self.nodeFactory = NodeFactory(directory)
-        self.buildConfig = BuildConfig(self.nodeFactory)
+        #self.directoryWatcher = DirectoryWatcher(directory, self.onFileChange, self.onResetAll)
+        self.fileSystem = FileSystem(directory)
+        self.buildConfig = BuildConfig(self.fileSystem)
         self.readBuildScript()
 
     def readBuildScript(self):
@@ -252,6 +253,9 @@ class BuildSystem:
     def build(self, targets):
         for node in self.buildConfig.nodes:
             node.build()
+
+    def onFileChange(self, change_type, absolute_path):
+        self.fileSystem.getNode(absolute_path).invalidate()
 
 class Node:
     def __init__(self, nodeFactory):
