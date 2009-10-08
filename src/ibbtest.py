@@ -8,7 +8,10 @@ import threading
 
 import ibb
 
-class FlattenTests(unittest.TestCase):
+class TestCase(unittest.TestCase):
+    pass
+
+class FlattenTests(TestCase):
     def test_flatten(self):
         self.assertEqual([], ibb.flatten([]))
         self.assertEqual([], ibb.flatten([[]]))
@@ -16,7 +19,7 @@ class FlattenTests(unittest.TestCase):
 
         self.assertEqual(['foo', 'bar', 'baz'], ibb.flatten([['foo', ['bar', 'baz']]]))
 
-class SubstTests(unittest.TestCase):
+class SubstTests(TestCase):
     def test_empty_list(self):
         self.assertEqual([], ibb.subst([], {}))
             
@@ -38,9 +41,16 @@ class SubstTests(unittest.TestCase):
                 {'targets': ['ibb.exe'],
                  'sources': ['ibb.cpp', 'ibbcommon.cpp']}))
 
-class DirectoryWatcherTests(unittest.TestCase):
+class TempDirectoryTest(TestCase):
     def setUp(self):
         self.directory = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.directory)
+        
+class DirectoryWatcherTests(TempDirectoryTest):
+    def setUp(self):
+        TempDirectoryTest.setUp(self)
         self.watcher = ibb.DirectoryWatcher(
             self.directory,
             onFileChange=self.onChange,
@@ -48,11 +58,9 @@ class DirectoryWatcherTests(unittest.TestCase):
         self.changes = queue.Queue()
 
     def tearDown(self):
-        print('dispose')
         self.watcher.dispose()
-        shutil.rmtree(self.directory)
-
         self.assertEqual(1, threading.active_count())
+        TempDirectoryTest.tearDown(self)
 
     def onChange(self, change_type, absolute_path):
         self.changes.put((change_type, absolute_path))
@@ -63,9 +71,7 @@ class DirectoryWatcherTests(unittest.TestCase):
     def test_records_file_creation(self):
         with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
             pass
-        print('getting')
         change = self.changes.get()
-        print('get')
         self.assertEqual(
             ('Create', os.path.join(self.directory, 'newfile')),
             change)
@@ -75,11 +81,9 @@ class DirectoryWatcherTests(unittest.TestCase):
             pass
         with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
             f.write(b'hi')
-        print('getting')
         changes = [
             self.changes.get(),
             self.changes.get() ]
-        print('get')
         self.assertEqual(
             [('Create', os.path.join(self.directory, 'newfile')),
              ('Change', os.path.join(self.directory, 'newfile'))],
@@ -89,11 +93,9 @@ class DirectoryWatcherTests(unittest.TestCase):
         with open(os.path.join(self.directory, 'newfile'), 'wb') as f:
             pass
         os.unlink(os.path.join(self.directory, 'newfile'))
-        print('getting')
         changes = [
             self.changes.get(),
             self.changes.get() ]
-        print('get')
         self.assertEqual(
             [('Create', os.path.join(self.directory, 'newfile')),
              ('Delete', os.path.join(self.directory, 'newfile'))],
@@ -105,9 +107,7 @@ class DirectoryWatcherTests(unittest.TestCase):
         os.rename(
             os.path.join(self.directory, 'oldfile'),
             os.path.join(self.directory, 'newfile'))
-        print('getting')
         changes = [self.changes.get() for _ in range(3)]
-        print('get')
         self.assertEqual(
             [ ('Create',    os.path.join(self.directory, 'oldfile')),
               ('RenameOld', os.path.join(self.directory, 'oldfile')),
@@ -133,5 +133,34 @@ class DirectoryWatcherTests(unittest.TestCase):
             ],
             changes)
 
+class FileSystemTests(TempDirectoryTest):
+    def setUp(self):
+        TempDirectoryTest.setUp(self)
+        self.fs = ibb.FileSystem(self.directory)
+
+    def test_same_file_returns_same_File(self):
+        self.assertIs(self.fs.getNode('foo'), self.fs.getNode('foo'))
+
+    def test_case_does_not_matter_in_windows(self):
+        self.assertIs(self.fs.getNode('foo'), self.fs.getNode('Foo'))
+
+    def test_both_slashes_are_supported(self):
+        self.assertIs(self.fs.getNode('foo/bar'), self.fs.getNode('Foo\\Bar'))
+
+    def test_double_slashes_with_dots_are_supported(self):
+        self.assertIs(
+            self.fs.getNode('foo/bar'),
+            self.fs.getNode('foo//.//bar'))
+
+    def test_paths_relative_to_fs_root(self):
+        self.assertIs(
+            self.fs.getNode('foo'),
+            self.fs.getNode(os.path.abspath(os.path.join(self.directory, 'foo'))))
+
+    def test_abspath_property(self):
+        self.assertEqual(
+            os.path.join(self.directory, 'foo', 'bar'),
+            self.fs.getNode('foo//.//bar').abspath)
+            
 if __name__ == '__main__':
     unittest.main()

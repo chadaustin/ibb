@@ -97,6 +97,17 @@ class TrayIcon:
 class FileSystem:
     def __init__(self, directory):
         self.directory = directory
+        self.files = {}
+
+    def getNode(self, path):
+        path = os.path.normcase(
+            os.path.normpath(
+                os.path.join(self.directory, path)))
+        try:
+            return self.files[path]
+        except KeyError:
+            self.files[path] = File(path)
+            return self.files[path]
 
 class BuildConfig:
     def __init__(self, nodeFactory):
@@ -104,12 +115,12 @@ class BuildConfig:
         self.nodes = []
 
     def File(self, *args, **kw):
-        node = File(self.nodeFactory, *args, **kw)
+        node = self.nodeFactory.getNode(*args, **kw)
         self.nodes.append(node)
         return node
     
     def Command(self, *args, **kw):
-        node = Command(self.nodeFactory, *args, **kw)
+        node = Command(*args, **kw)
         #self.nodes.append(node)
         return node
 
@@ -213,7 +224,7 @@ class DirectoryWatcher:
                 # ReadDirectoryChangesW loop or make the buffer size
                 # tiny.
                 self.onResetAll()
-            print('numBytes', lastReadSize)
+            #print('numBytes', lastReadSize)
 
             self.bufferQueue.put(buffer[:lastReadSize].tobytes())
 
@@ -232,14 +243,14 @@ class DirectoryWatcher:
                 return
 
             for action, fileName in win32all.FILE_NOTIFY_INFORMATION(next, len(next)):
-                print(action, fileName)
+                #print(action, fileName)
                 self.onFileChange(mapping[action], os.path.join(self.directory, fileName))
             
 
 class BuildSystem:
     def __init__(self, directory):
         self.directory = directory
-        #self.directoryWatcher = DirectoryWatcher(directory, self.onFileChange, self.onResetAll)
+        self.directoryWatcher = DirectoryWatcher(directory, self.onFileChange, self.onResetAll)
         self.fileSystem = FileSystem(directory)
         self.buildConfig = BuildConfig(self.fileSystem)
         self.readBuildScript()
@@ -255,30 +266,50 @@ class BuildSystem:
             node.build()
 
     def onFileChange(self, change_type, absolute_path):
+        print('directory', self.directory)
+        print('invalidating', absolute_path)
         self.fileSystem.getNode(absolute_path).invalidate()
 
+    def onResetAll(self):
+        #self.fileSystem.dirtyAll()
+        pass
+
 class Node:
-    def __init__(self, nodeFactory):
-        self.nodeFactory = nodeFactory
+    def __init__(self):
         self.dependencies = []
+        self.dependents = []
 
     def addDependency(self, node):
         self.dependencies.append(node)
 
-class Directory(Node):
-    pass
+    def addDependent(self, node):
+        self.dependents.append(node)
+
+    def invalidate(self):
+        for dep in self.dependents:
+            dep.invalidate()
 
 class File(Node):
-    def __init__(self, nodeFactory, path):
-        Node.__init__(self, nodeFactory)
+    def __init__(self, path):
+        Node.__init__(self)
         self.path = path
         self.dirty = True
 
     def build(self):
+        print('building', id(self), self.dirty)
         if self.dirty:
             for dep in self.dependencies:
                 dep.execute()
             self.dirty = False
+
+    def invalidate(self):
+        print('invalidating', id(self))
+        self.dirty = True
+        Node.invalidate(self)
+
+    @property
+    def abspath(self):
+        return self.path
 
 def flatten(ls):
     out = []
@@ -337,13 +368,15 @@ def subst(ls, args):
         for elt in ls)
 
 class Command(Node):
-    def __init__(self, nodeFactory, targets, sources, command):
-        Node.__init__(self, nodeFactory)
+    def __init__(self, targets, sources, command):
+        Node.__init__(self)
 
         for node in targets:
             node.addDependency(self)
+            self.addDependent(node)
         for node in sources:
             self.addDependency(node)
+            node.addDependent(self)
 
         def fmt(c):
             if isinstance(c, Node):
