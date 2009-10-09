@@ -14,6 +14,7 @@ import boostbuildv2
 import ant
 import nant
 import rant
+import ibb
 
 
 HELP_USAGE = """Usage: generate_libs.py root libs classes internal external.
@@ -39,15 +40,16 @@ def main(argv):
 
     cppcodebase.SetDir(root_dir)
 
-    scons.CreateCodebase(libs, classes, internal_includes, external_includes)
-    make.CreateCodebase(libs, classes, internal_includes, external_includes)
-    jam.CreateCodebase(libs, classes, internal_includes, external_includes)
-    msvc2003.CreateCodebase(libs, classes, internal_includes, external_includes)
-    jamplus.CreateCodebase(libs, classes, internal_includes, external_includes)
-    boostbuildv2.CreateCodebase(libs, classes, internal_includes, external_includes)
-    ant.CreateCodebase(libs, classes, internal_includes, external_includes)
-    nant.CreateCodebase(libs, classes, internal_includes, external_includes)
-    rant.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #scons.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #make.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #jam.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #msvc2003.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #jamplus.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #boostbuildv2.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #ant.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #nant.CreateCodebase(libs, classes, internal_includes, external_includes)
+    #rant.CreateCodebase(libs, classes, internal_includes, external_includes)
+    ibb.CreateCodebase(libs, classes, internal_includes, external_includes)
 
 if __name__ == "__main__":
     main( sys.argv )

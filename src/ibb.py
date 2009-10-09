@@ -296,7 +296,6 @@ class File(Node):
         self.dirty = True
 
     def build(self):
-        print('building', id(self), self.dirty)
         if self.dirty:
             for dep in self.dependencies:
                 dep.execute()
