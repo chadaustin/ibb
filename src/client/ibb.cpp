@@ -94,4 +94,3 @@ int main() {
         &argc);
     return wmain(argc, const_cast<const wchar_t**>(argv));
 }
-

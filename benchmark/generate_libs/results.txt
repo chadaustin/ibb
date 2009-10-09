@@ -1,0 +1,65 @@
+Jam on Windows (2.5)
+
+BoostBuild v2 on Linux:
+    - Full rebuild: 3m 28s
+    - Incremental build: 46.0s
+    - Incremental single libray: 1.6s
+
+BoostBuild v2 on Windows (3.1.10):
+    - Full rebuild: 12m 03s
+    - Incremental build: 55.5s
+    - Incremental single libray: 2.0s
+    
+Ant on Linux:
+    - Full rebuild: 2m 08s
+    - Incremental build: 20.6s
+    - Incremental single library: 1.7s
+    
+Ant on Windows (1.6.5):
+    - Full rebuild: 3.42s (!!)
+    - Incremental build: 33.0s
+    - Incremental single library: 1.9s
+
+MSVC 2003 with FastSolutionBuild:
+    - Full rebuild: 7m 26s
+    - Incremental build: ~1s
+    - Incremental single library: ~1s
+Problems with FastSolutionBuild:
+    - No command line
+    - No better dependencies
+    - Problems in the past (at least with Xbox)
+    - No complex dependencies (multiple executables)
+    - No solution at once (only project and dependency chain)
+
+VCBuild (7.10.3088.1) (used by MSBuild)
+    - Full rebuild: 6m 56s
+    - Incremental build: 17.9s
+    - Incremental single library: 0.5s
+
+MSVC 2005:
+    - Full rebuild: 6m 46s (5m 34s with 2 threads)
+    - Incremental build: 20.2s
+    - Incremental single library: 3.5s
+
+Nant (0.85 rc3):
+    - Full rebuild: 3m 24s (!!!! Batching multiple cpp files?)
+    - Incremental build: 34.9s
+    - Incremental single library: 1.4s
+
+    
+------------
+TODO:
+- Improved Jam
+
+
+Article on encapsulation
+- Every so often is good to question things that you take for granted.
+    - Examples: from Gribbin's book, something from everyday life
+- Same with encapsulation
+- I used to be (and to a certain extent still are) an encapsulation Nazi
+- Looking back it had some positive effects, but also many negative ones.
+- Positive ones were due to abstraction, not encapsulation
+
+- Not dealing with defensive programming, junior programmers, or sloppy ones.
+- Just talking about what *I* want right now when doing development.
+
