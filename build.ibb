@@ -1,6 +1,5 @@
 sources = [
     build.File('src/client/ibb.cpp'),
-    build.File('src/client/common.cpp'),
 ]
 targets = [
     build.File('ibb.exe'),

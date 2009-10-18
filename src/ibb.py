@@ -367,7 +367,7 @@ def subst(ls, args):
         for elt in ls)
 
 class Command(Node):
-    def __init__(self, targets, sources, command):
+    def __init__(self, targets, sources, command, cwd=None, env=None):
         Node.__init__(self)
 
         for node in targets:
@@ -387,6 +387,8 @@ class Command(Node):
             sources=list(map(fmt, sources))))
 
     def execute(self):
+        # todo: use subprocess
+        # opportunity for tools to hook output (for dependency scanning)
         print('executing', self.command)
         print('executing', ' '.join(self.command))
         print('returned', os.system(' '.join(self.command)))
