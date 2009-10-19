@@ -50,10 +50,25 @@ bool startServer() {
         return false;
     }
 
+    // TODO: use safe strings
     wcsncat(python_path, L"\\python.exe", MAX_PATH);
 
+    WCHAR executable_path[MAX_PATH * 2];
+    DWORD length = GetModuleFileNameW(GetModuleHandle(NULL), executable_path, MAX_PATH);
+    if (length == 0 || length == MAX_PATH) {
+        fprintf(stderr, "ibb *** failed to get executable path\n");
+        return false;
+    }
+
+    wchar_t* last_slash = wcsrchr(executable_path, '\\');
+    if (last_slash) {
+        *last_slash = 0;
+    }
+    wcsncat(executable_path, L"\\src\\ibb.py", MAX_PATH * 2);
+    
+    // TODO: use CreateProcess instead of ShellExecute
     // TODO: print error code
-    HINSTANCE result = ShellExecuteW(0, L"open", python_path, L"", NULL, SW_SHOW);
+    HINSTANCE result = ShellExecuteW(0, L"open", python_path, executable_path, NULL, SW_SHOW);
     return result > reinterpret_cast<HINSTANCE>(32);
 }
 
