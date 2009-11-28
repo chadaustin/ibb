@@ -19,10 +19,7 @@ class CommandHandler:
         self.systems = {}
     
     def handle(self, cwd, args, wfile):
-        if len(args) == 1:
-            wfile.write('Usage: %s --help\n' % (os.path.basename(args[0])))
-            raise SystemExit(1)
-        elif '--stop' in args:
+        if '--stop' in args:
             raise StopServer
         else:
             self.build(cwd, args[1:])
@@ -258,7 +255,7 @@ class BuildSystem:
     def readBuildScript(self):
         globals = {'build': self.buildConfig}
         locals = {}
-        with open(os.path.join(self.directory, 'build.ibb')) as f:
+        with open(os.path.join(self.directory, 'main.ibb')) as f:
             exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
 
     def build(self, targets):
@@ -266,8 +263,6 @@ class BuildSystem:
             node.build()
 
     def onFileChange(self, change_type, absolute_path):
-        print('directory', self.directory)
-        print('invalidating', absolute_path)
         self.fileSystem.getNode(absolute_path).invalidate()
 
     def onResetAll(self):
@@ -302,7 +297,6 @@ class File(Node):
             self.dirty = False
 
     def invalidate(self):
-        print('invalidating', id(self))
         self.dirty = True
         Node.invalidate(self)
 

@@ -29,7 +29,6 @@ bool openServerConnection(SOCKET* s) {
     
     int result = connect(*s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
     if (result) {
-        error("Failed to connect to IBB server");
         return false;
     }
 
@@ -108,8 +107,13 @@ bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[], clock_t start
     //fflush(stdout);
 
     for (;;) {
-        WCHAR buffer[1024];
-        int bytes = recv(connection, reinterpret_cast<char*>(buffer), sizeof(buffer), 0);
+        const int BUFFER_LENGTH = 1024;
+        WCHAR buffer[BUFFER_LENGTH + 1];
+        const int bytes = recv(
+            connection,
+            reinterpret_cast<char*>(buffer),
+            sizeof(WCHAR) * BUFFER_LENGTH,
+            0);
         if (0 == bytes) {
             break;
         }
@@ -117,7 +121,9 @@ bool sendBuild(SOCKET connection, int argc, const wchar_t* argv[], clock_t start
             error("Broken connection");
             break;
         }
-        wprintf(L"%*s", bytes / sizeof(WCHAR), buffer);
+        const int chars = bytes / sizeof(WCHAR); // TODO: handle odd bytes values
+        buffer[chars] = 0;
+        wprintf(L"%s", buffer); // %*s sometimes wrote extra crap at the end
     }
 
     //printf("Result recieved in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
