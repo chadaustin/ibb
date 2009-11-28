@@ -361,6 +361,9 @@ def subst(ls, args):
         IBBFormatter().format(elt, **args)
         for elt in ls)
 
+class BuildFailed(SystemExit):
+    pass
+
 class Command(Node):
     def __init__(self, targets, sources, command, cwd=None, env=None):
         Node.__init__(self)
@@ -388,7 +391,7 @@ class Command(Node):
         rv = os.system(' '.join(self.command))
         if rv:
             print('build failure:', rv)
-            raise SystemExit(rv)
+            raise BuildFailed(rv)
 
 if __name__ == '__main__':
     BuildServer().main()
