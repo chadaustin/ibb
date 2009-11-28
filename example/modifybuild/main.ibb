@@ -1,0 +1,7 @@
+source = build.File('foo.c')
+#source = build.File('bar.c')
+
+build.Command(
+    [build.File('modifybuild.exe')],
+    [source],
+    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}'])

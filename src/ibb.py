@@ -249,10 +249,14 @@ class BuildSystem:
         self.directory = directory
         self.directoryWatcher = DirectoryWatcher(directory, self.onFileChange, self.onResetAll)
         self.fileSystem = FileSystem(directory)
+        self.__buildNode = self.fileSystem.getNode('main.ibb')
         self.buildConfig = BuildConfig(self.fileSystem)
-        self.readBuildScript()
 
     def readBuildScript(self):
+        self.fileSystem = FileSystem(self.directory)
+        self.__buildNode = self.fileSystem.getNode('main.ibb')
+        self.buildConfig = BuildConfig(self.fileSystem)
+
         globals = {'build': self.buildConfig}
         locals = {}
         fn = 'main.ibb'
@@ -260,6 +264,11 @@ class BuildSystem:
             exec(compile(f.read(), fn, 'exec'), globals, locals)
 
     def build(self, targets):
+        if self.__buildNode.dirty:
+            print('rereading build script')
+            self.readBuildScript()
+            self.__buildNode.build()
+            
         for node in self.buildConfig.nodes:
             node.build()
 
