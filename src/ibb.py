@@ -110,6 +110,7 @@ class BuildConfig:
     def __init__(self, nodeFactory):
         self.nodeFactory = nodeFactory
         self.nodes = []
+        self.subcommands = {}
 
     def File(self, *args, **kw):
         node = self.nodeFactory.getNode(*args, **kw)
@@ -120,6 +121,9 @@ class BuildConfig:
         node = Command(*args, **kw)
         #self.nodes.append(node)
         return node
+
+    def subcommand(self, commandFunction):
+        self.subcommands[commandFunction.__name__] = commandFunction
 
 class DirectoryWatcher:
     DIE = 'DIE'
@@ -269,6 +273,16 @@ class BuildSystem:
             self.readBuildScript()
             self.__buildNode.build()
             
+        if targets:
+            subcommandName = targets[0]
+            try:
+                sc = self.buildConfig.subcommands[subcommandName]
+            except KeyError:
+                pass
+            else:
+                sc()
+            return
+        
         for node in self.buildConfig.nodes:
             node.build()
 

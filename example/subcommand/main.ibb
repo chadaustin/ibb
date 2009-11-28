@@ -1,0 +1,7 @@
+@build.subcommand
+def foo():
+    print('foo')
+
+@build.subcommand
+def bar():
+    print('bar')
