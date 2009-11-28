@@ -1,0 +1,5 @@
+- real-time search
+    Implement subcommand
+    Implement Node.walk
+    Cache Node.data
+- 
