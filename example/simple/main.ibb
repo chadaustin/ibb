@@ -1,0 +1,4 @@
+build.Command(
+    [build.File('simple.exe')],
+    [build.File('simple.c')],
+    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}'])
