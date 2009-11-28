@@ -255,8 +255,9 @@ class BuildSystem:
     def readBuildScript(self):
         globals = {'build': self.buildConfig}
         locals = {}
-        with open(os.path.join(self.directory, 'main.ibb')) as f:
-            exec(compile(f.read(), 'build.ibb', 'exec'), globals, locals)
+        fn = 'main.ibb'
+        with open(os.path.join(self.directory, fn)) as f:
+            exec(compile(f.read(), fn, 'exec'), globals, locals)
 
     def build(self, targets):
         for node in self.buildConfig.nodes:
@@ -383,9 +384,11 @@ class Command(Node):
     def execute(self):
         # todo: use subprocess
         # opportunity for tools to hook output (for dependency scanning)
-        print('executing', self.command)
-        print('executing', ' '.join(self.command))
-        print('returned', os.system(' '.join(self.command)))
+        print('executing:', ' '.join(self.command))
+        rv = os.system(' '.join(self.command))
+        if rv:
+            print('build failure:', rv)
+            raise SystemExit(rv)
 
 if __name__ == '__main__':
     BuildServer().main()
