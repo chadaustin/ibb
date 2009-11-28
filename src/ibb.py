@@ -262,10 +262,9 @@ class BuildSystem:
         self.buildConfig = BuildConfig(self.fileSystem)
 
         globals = {'build': self.buildConfig}
-        locals = {}
         fn = 'main.ibb'
         with open(os.path.join(self.directory, fn)) as f:
-            exec(compile(f.read(), fn, 'exec'), globals, locals)
+            exec(compile(f.read(), fn, 'exec'), globals, globals)
 
     def build(self, targets):
         if self.__buildNode.dirty:
@@ -280,7 +279,7 @@ class BuildSystem:
             except KeyError:
                 pass
             else:
-                sc()
+                sc(targets[1:])
             return
         
         for node in self.buildConfig.nodes:

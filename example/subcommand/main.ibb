@@ -1,7 +1,9 @@
-@build.subcommand
-def foo():
-    print('foo')
+p = print
 
 @build.subcommand
-def bar():
-    print('bar')
+def foo(args):
+    p('foo')
+
+@build.subcommand
+def bar(args):
+    p('bar')
