@@ -96,25 +96,40 @@ class TrayIcon:
 class FileSystem:
     def __init__(self, directory):
         self.directory = directory
-        self.files = {}
+        self.drives = {}
 
     def getNode(self, path):
+        path = os.path.normcase(os.path.normpath(self.abspath(path)))
+        
+        drive, path = os.path.splitdrive(path)
+        path_list = self.splitall(path)
+
+        current = self.drives
+        abs = ''
+        for elt in (drive,) + path_list:
+            abs = os.path.join(abs, elt)
+            current.setdefault(elt, File(self, abs))
+            lastNode = current[elt]
+            current = current[elt].childNodes
+            
+        return lastNode
+    
+    # This is a better abspath
+    def abspath(self, path):
         drive, path = os.path.splitdrive(path)
         if drive:
             if not path.startswith(os.sep):
                 path = os.sep + path
-            path = os.path.join(drive, path)
+            return os.path.join(drive, path)
         else:
-            path = os.path.abspath(os.path.join(self.directory, path))
+            return os.path.abspath(os.path.join(self.directory, path))
 
-        path = os.path.normcase(os.path.normpath(path))
-        drive, path = os.path.splitdrive(path)
-        key = os.path.join(drive, path)
-        try:
-            return self.files[key]
-        except KeyError:
-            self.files[key] = File(self, os.path.join(drive, path))
-            return self.files[key]
+    def splitall(self, path):
+        ls = os.path.split(path)
+        while ls[0] != os.sep:
+            ls = os.path.split(ls[0]) + ls[1:]
+        return ls
+            
 
 class BuildConfig:
     def __init__(self, nodeFactory):
@@ -341,6 +356,7 @@ class File(Node):
         self.__fileSystem = fileSystem
         self.path = path
         self.dirty = True
+        self.childNodes = {}
         
         self.__exists = NoData
         self.__data = NoData
@@ -387,10 +403,7 @@ class File(Node):
     @property
     def children(self):
         if NoData is self.__children:
-            self.__children = set()
-            for path, fileNode in self.__fileSystem.files.items():
-                if self.path == os.path.split(path)[0]:
-                    self.__children.add(fileNode)
+            self.__children = set(self.childNodes.values())
             if os.path.isdir(self.path):
                 for path in os.listdir(self.path):
                     self.__children.add(self.__fileSystem.getNode(os.path.join(self.path, path)))
