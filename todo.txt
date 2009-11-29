@@ -1,2 +1,0 @@
-- real-time search
-    Implement Node.walk
