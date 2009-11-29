@@ -325,12 +325,16 @@ class Node:
         for dep in self.dependents:
             dep.invalidate()
 
+NoData = object()
+
 class File(Node):
     def __init__(self, path):
         Node.__init__(self)
         self.path = path
         self.dirty = True
-        self.__exists = None
+        
+        self.__exists = NoData
+        self.__data = NoData
 
     def build(self):
         if self.dirty:
@@ -340,7 +344,8 @@ class File(Node):
 
     def invalidate(self):
         self.dirty = True
-        self.__exists = None
+        self.__exists = NoData
+        self.__data = NoData
         Node.invalidate(self)
 
     @property
@@ -349,9 +354,18 @@ class File(Node):
 
     @property
     def exists(self):
-        if None is self.__exists:
+        if NoData is self.__exists:
             self.__exists = os.path.exists(self.path)
         return self.__exists
+
+    @property
+    def data(self):
+        if NoData is self.__data:
+            if os.path.exists(self.path):
+                self.__data = open(self.path, 'rb').read()
+            else:
+                self.__data = None
+        return self.__data
 
 def flatten(ls):
     out = []
