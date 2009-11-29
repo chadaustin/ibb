@@ -403,6 +403,7 @@ class File(Node):
     @property
     def children(self):
         if NoData is self.__children:
+            #print('getting children of', self.path)
             self.__children = set(self.childNodes.values())
             if os.path.isdir(self.path):
                 for path in os.listdir(self.path):

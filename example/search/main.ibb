@@ -1,0 +1,20 @@
+import re
+
+KNOWN_EXTENSIONS = [
+    '.cpp',
+    '.hpp',
+    '.c',
+    '.as',
+    '.h',
+    '.py',
+    '.js',
+]
+
+@build.subcommand
+def search(args):
+    [pattern] = args
+    matcher = re.compile(pattern.encode('ascii'))
+    for node in build.File('.').walk():
+        if any(node.abspath.endswith(ext) for ext in KNOWN_EXTENSIONS):
+            if matcher.search(node.data):
+                print('found!', node.abspath)
