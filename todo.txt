@@ -1,3 +1,2 @@
 - real-time search
     Implement Node.walk
-    Cache Node.data

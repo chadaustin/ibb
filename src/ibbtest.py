@@ -170,7 +170,7 @@ class FileSystemTests(TempDirectoryTest):
 
         node.invalidate()
         self.assertTrue(node.exists)
-            
+
     def test_can_read_data_if_file_exists(self):
         node = self.fs.getNode('foo')
         self.assertIs(None, node.data)
@@ -179,6 +179,21 @@ class FileSystemTests(TempDirectoryTest):
 
         node.invalidate()
         self.assertEqual(b'hello', node.data)
+
+    def test_node_has_child_even_if_it_is_virtual(self):
+        parent = self.fs.getNode('foo')
+        child = self.fs.getNode('foo/bar')
+        self.assertEqual(set(), child.children)
+        self.assertEqual(set([child]), parent.children)
+
+    def test_node_has_real_children(self):
+        parent = self.fs.getNode('foo')
+        os.mkdir(os.path.join(self.directory, 'foo'))
+        open(os.path.join(self.directory, 'foo', 'bar'), 'wb').write(b'child')
+
+        [child] = parent.children
+        self.assertEqual(set(), child.children)
+        self.assertEqual(os.path.join(self.directory, 'foo', 'bar'), child.path)
             
 if __name__ == '__main__':
     unittest.main()

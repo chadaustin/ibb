@@ -105,7 +105,7 @@ class FileSystem:
         try:
             return self.files[path]
         except KeyError:
-            self.files[path] = File(path)
+            self.files[path] = File(self, path)
             return self.files[path]
 
 class BuildConfig:
@@ -328,13 +328,15 @@ class Node:
 NoData = object()
 
 class File(Node):
-    def __init__(self, path):
+    def __init__(self, fileSystem, path):
         Node.__init__(self)
+        self.__fileSystem = fileSystem
         self.path = path
         self.dirty = True
         
         self.__exists = NoData
         self.__data = NoData
+        self.__children = NoData
 
     def build(self):
         if self.dirty:
@@ -346,6 +348,7 @@ class File(Node):
         self.dirty = True
         self.__exists = NoData
         self.__data = NoData
+        self.__children = NoData
         Node.invalidate(self)
 
     @property
@@ -366,6 +369,18 @@ class File(Node):
             else:
                 self.__data = None
         return self.__data
+
+    @property
+    def children(self):
+        if NoData is self.__children:
+            self.__children = set()
+            for path, fileNode in self.__fileSystem.files.items():
+                if self.path == os.path.split(path)[0]:
+                    self.__children.add(fileNode)
+            if os.path.isdir(self.path):
+                for path in os.listdir(self.path):
+                    self.__children.add(self.__fileSystem.getNode(os.path.join(self.path, path)))
+        return self.__children
 
 def flatten(ls):
     out = []
