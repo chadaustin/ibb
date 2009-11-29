@@ -1,5 +1,4 @@
 - real-time search
-    Implement subcommand
     Implement Node.walk
     Cache Node.data
-- 
+    Pass print out to client
