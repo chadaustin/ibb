@@ -1,7 +1,9 @@
+import contextlib
 import io
 import os
 import socketserver
 import string
+import sys
 import threading
 import time
 import queue
@@ -22,9 +24,9 @@ class CommandHandler:
         if '--stop' in args:
             raise StopServer
         else:
-            self.build(cwd, args[1:])
+            self.build(cwd, args[1:], wfile)
 
-    def build(self, cwd, targets):
+    def build(self, cwd, targets, wfile):
         try:
             buildSystem = self.systems[cwd]
         except KeyError:
@@ -32,7 +34,7 @@ class CommandHandler:
             buildSystem = self.systems[cwd] = BuildSystem(cwd)
         else:
             print('reusing build')
-        buildSystem.build(targets)
+        buildSystem.build(targets, wfile)
 
 class BuildServer:
     def __init__(self):
@@ -266,9 +268,25 @@ class BuildSystem:
         with open(os.path.join(self.directory, fn)) as f:
             exec(compile(f.read(), fn, 'exec'), globals, globals)
 
-    def build(self, targets):
+    def build(self, targets, wfile):
+        with self.__overrideOutput(wfile, wfile):
+            self.__build(targets)
+
+    @contextlib.contextmanager
+    def __overrideOutput(self, new_stdout, new_stderr):
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        
+        sys.stdout = new_stdout
+        sys.stderr = new_stderr
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+
+    def __build(self, targets):
         if self.__buildNode.dirty:
-            print('rereading build script')
             self.readBuildScript()
             self.__buildNode.build()
             
