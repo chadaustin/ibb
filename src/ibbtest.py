@@ -141,6 +141,13 @@ class FileSystemTests(TempDirectoryTest):
     def test_same_file_returns_same_File(self):
         self.assertIs(self.fs.getNode('foo'), self.fs.getNode('foo'))
 
+    def test_drives_return_same_node(self):
+        self.assertIs(self.fs.getNode('C:'), self.fs.getNode('C:/'))
+        self.assertIs(self.fs.getNode('C:'), self.fs.getNode('C:\\'))
+
+        self.assertIs(self.fs.getNode('C:foo'), self.fs.getNode('C:/foo'))
+        self.assertIs(self.fs.getNode('C:foo'), self.fs.getNode('C:\\foo'))
+
     def test_case_does_not_matter_in_windows(self):
         self.assertIs(self.fs.getNode('foo'), self.fs.getNode('Foo'))
 

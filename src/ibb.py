@@ -99,14 +99,22 @@ class FileSystem:
         self.files = {}
 
     def getNode(self, path):
-        path = os.path.normcase(
-            os.path.normpath(
-                os.path.join(self.directory, path)))
+        drive, path = os.path.splitdrive(path)
+        if drive:
+            if not path.startswith(os.sep):
+                path = os.sep + path
+            path = os.path.join(drive, path)
+        else:
+            path = os.path.abspath(os.path.join(self.directory, path))
+
+        path = os.path.normcase(os.path.normpath(path))
+        drive, path = os.path.splitdrive(path)
+        key = os.path.join(drive, path)
         try:
-            return self.files[path]
+            return self.files[key]
         except KeyError:
-            self.files[path] = File(self, path)
-            return self.files[path]
+            self.files[key] = File(self, os.path.join(drive, path))
+            return self.files[key]
 
 class BuildConfig:
     def __init__(self, nodeFactory):
