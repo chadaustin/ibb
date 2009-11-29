@@ -1,4 +1,3 @@
 - real-time search
     Implement Node.walk
     Cache Node.data
-    Pass print out to client

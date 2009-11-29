@@ -161,6 +161,15 @@ class FileSystemTests(TempDirectoryTest):
         self.assertEqual(
             os.path.join(self.directory, 'foo', 'bar'),
             self.fs.getNode('foo//.//bar').abspath)
+
+    def test_can_read_data_if_file_exists(self):
+        node = self.fs.getNode('foo')
+        self.assertFalse(node.exists)
+        open(os.path.join(self.directory, 'foo'), 'w').write('hello')
+        self.assertFalse(node.exists)
+
+        node.invalidate()
+        self.assertTrue(node.exists)
             
 if __name__ == '__main__':
     unittest.main()

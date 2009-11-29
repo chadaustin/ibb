@@ -330,6 +330,7 @@ class File(Node):
         Node.__init__(self)
         self.path = path
         self.dirty = True
+        self.__exists = None
 
     def build(self):
         if self.dirty:
@@ -339,11 +340,18 @@ class File(Node):
 
     def invalidate(self):
         self.dirty = True
+        self.__exists = None
         Node.invalidate(self)
 
     @property
     def abspath(self):
         return self.path
+
+    @property
+    def exists(self):
+        if None is self.__exists:
+            self.__exists = os.path.exists(self.path)
+        return self.__exists
 
 def flatten(ls):
     out = []
