@@ -194,6 +194,16 @@ class FileSystemTests(TempDirectoryTest):
         [child] = parent.children
         self.assertEqual(set(), child.children)
         self.assertEqual(os.path.join(self.directory, 'foo', 'bar'), child.path)
+
+    def test_walk(self):
+        root = self.fs.getNode('.')
+        child1 = self.fs.getNode('child1')
+        grandchild1 = self.fs.getNode('child1/grandchild1')
+        grandchild2 = self.fs.getNode('child1/grandchild2')
+        child2 = self.fs.getNode('child2')
+
+        nodes = list(root.walk())
+        self.assertEqual([root, child1, grandchild1, grandchild2, child2], nodes)
             
 if __name__ == '__main__':
     unittest.main()

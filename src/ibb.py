@@ -338,6 +338,12 @@ class File(Node):
         self.__data = NoData
         self.__children = NoData
 
+    def __lt__(self, other):
+        return self.path < other.path
+
+    def __repr__(self):
+        return '<ibb.File %s>' % (self.path,)
+
     def build(self):
         if self.dirty:
             for dep in self.dependencies:
@@ -381,6 +387,13 @@ class File(Node):
                 for path in os.listdir(self.path):
                     self.__children.add(self.__fileSystem.getNode(os.path.join(self.path, path)))
         return self.__children
+
+    def walk(self):
+        stack = [self]
+        while stack:
+            node = stack.pop()
+            yield node
+            stack.extend(reversed(sorted(node.children)))
 
 def flatten(ls):
     out = []
