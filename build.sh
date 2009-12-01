@@ -8,5 +8,5 @@ die() {
 #g++ -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp src/client/common.cpp -lws2_32 || die
 
 cp ibb.exe ibb-bootstrap.exe || die
-./ibb-bootstrap.exe target || die
+./ibb-bootstrap.exe || die
 rm ibb-bootstrap.exe || die
