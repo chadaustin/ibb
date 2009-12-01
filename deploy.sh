@@ -14,4 +14,4 @@ cp ibb.exe dist/ibb.exe || die
 rm -f ibb-$TODAY.zip || die
 zip -r ibb-$TODAY.zip dist || die
 
-scp ibb-$TODAY.zip chad@chadaustin.xen.prgmr.com:/home/chad/public_html/ibb || die
+#scp ibb-$TODAY.zip chad@chadaustin.xen.prgmr.com:/home/chad/public_html/ibb || die

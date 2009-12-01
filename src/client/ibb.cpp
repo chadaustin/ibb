@@ -3,6 +3,7 @@
 #define UNICODE
 #include <winsock2.h>
 #include <shellapi.h>
+#include <shlwapi.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -36,22 +37,6 @@ bool openServerConnection(SOCKET* s) {
 }
 
 bool startServer() {
-    WCHAR python_path[MAX_PATH + 1] = {0};
-    LONG size = sizeof(python_path);
-    LONG success = RegQueryValueW(
-        HKEY_LOCAL_MACHINE,
-        L"SOFTWARE\\Python\\PythonCore\\3.1\\InstallPath",
-        python_path,
-        &size);
-    if (success) {
-        // TODO: print error
-        fprintf(stderr, "ibb *** failed to locate Python 3.1\n");
-        return false;
-    }
-
-    // TODO: use safe strings
-    wcsncat(python_path, L"\\python.exe", MAX_PATH);
-
     WCHAR executable_path[MAX_PATH * 2];
     DWORD length = GetModuleFileNameW(GetModuleHandle(NULL), executable_path, MAX_PATH);
     if (length == 0 || length == MAX_PATH) {
@@ -62,13 +47,44 @@ bool startServer() {
     wchar_t* last_slash = wcsrchr(executable_path, '\\');
     if (last_slash) {
         *last_slash = 0;
+    } else {
+        last_slash = executable_path;
     }
-    wcsncat(executable_path, L"\\src\\ibb.py", MAX_PATH * 2);
-    
-    // TODO: use CreateProcess instead of ShellExecute
-    // TODO: print error code
-    HINSTANCE result = ShellExecuteW(0, L"open", python_path, executable_path, NULL, SW_SHOW);
-    return result > reinterpret_cast<HINSTANCE>(32);
+    wcsncpy(last_slash, L"\\ibb_server.exe", MAX_PATH);
+
+    if (PathFileExists(executable_path)) {
+        // Launch server executable directly.
+        
+        // TODO: use CreateProcess instead of ShellExecute
+        // TODO: print error code
+        HINSTANCE result = ShellExecuteW(0, L"open", executable_path, executable_path, NULL, SW_SHOW);
+        return result > reinterpret_cast<HINSTANCE>(32);
+    } else {
+        // Launch server from Python.
+
+        WCHAR python_path[MAX_PATH + 1] = {0};
+        LONG size = sizeof(python_path);
+        LONG success = RegQueryValueW(
+            HKEY_LOCAL_MACHINE,
+            L"SOFTWARE\\Python\\PythonCore\\3.1\\InstallPath",
+            python_path,
+            &size);
+        if (success) {
+            // TODO: print error
+            fprintf(stderr, "ibb *** failed to locate Python 3.1\n");
+            return false;
+        }
+
+        // TODO: use safe strings
+        wcsncat(python_path, L"\\python.exe", MAX_PATH);
+        
+        wcsncpy(last_slash, L"\\src\\ibb.py", MAX_PATH);
+        
+        // TODO: use CreateProcess instead of ShellExecute
+        // TODO: print error code
+        HINSTANCE result = ShellExecuteW(0, L"open", python_path, executable_path, NULL, SW_SHOW);
+        return result > reinterpret_cast<HINSTANCE>(32);
+    }
 }
 
 void sendString(SOCKET connection, const WCHAR* begin, const WCHAR* end = 0) {

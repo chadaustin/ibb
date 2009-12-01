@@ -8,4 +8,4 @@ targets = [
 build.Command(
     targets,
     sources,
-    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32'])
+    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32', '-lshlwapi'])
