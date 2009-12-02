@@ -361,6 +361,7 @@ class File(Node):
         self.__exists = NoData
         self.__data = NoData
         self.__children = NoData
+        self.__lock = threading.Lock() # hack: need to think about real safety
 
     def __lt__(self, other):
         return self.path < other.path
@@ -375,11 +376,12 @@ class File(Node):
             self.dirty = False
 
     def invalidate(self):
-        self.dirty = True
-        self.__exists = NoData
-        self.__data = NoData
-        self.__children = NoData
-        Node.invalidate(self)
+        with self.__lock:
+            self.dirty = True
+            self.__exists = NoData
+            self.__data = NoData
+            self.__children = NoData
+            Node.invalidate(self)
 
     @property
     def abspath(self):
@@ -393,22 +395,24 @@ class File(Node):
 
     @property
     def data(self):
-        if NoData is self.__data:
-            if os.path.exists(self.path):
-                self.__data = open(self.path, 'rb').read()
-            else:
-                self.__data = None
-        return self.__data
+        with self.__lock:
+            if NoData is self.__data:
+                if os.path.exists(self.path):
+                    self.__data = open(self.path, 'rb').read()
+                else:
+                    self.__data = None
+            return self.__data
 
     @property
     def children(self):
-        if NoData is self.__children:
-            #print('getting children of', self.path)
-            self.__children = set(self.childNodes.values())
-            if os.path.isdir(self.path):
-                for path in os.listdir(self.path):
-                    self.__children.add(self.__fileSystem.getNode(os.path.join(self.path, path)))
-        return self.__children
+        with self.__lock:
+            if NoData is self.__children:
+                #print('getting children of', self.path)
+                self.__children = set(self.childNodes.values())
+                if os.path.isdir(self.path):
+                    for path in os.listdir(self.path):
+                        self.__children.add(self.__fileSystem.getNode(os.path.join(self.path, path)))
+            return self.__children
 
     def walk(self):
         stack = [self]
