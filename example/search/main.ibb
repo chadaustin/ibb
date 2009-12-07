@@ -1,3 +1,4 @@
+import ibb
 import re
 
 KNOWN_EXTENSIONS = [
@@ -10,11 +11,41 @@ KNOWN_EXTENSIONS = [
     '.js',
 ]
 
+class SourceListNode(ibb.Node):
+    def __init__(self, sourceDir):
+        ibb.Node.__init__(self)
+        self.__sourceDir = sourceDir
+        self.__dirty = True
+        self.__sourceList = []
+
+        self.addDependency(sourceDir)
+        sourceDir.addDependent(self)
+
+    def invalidate(self):
+        ibb.Node.invalidate(self)
+        self.__dirty = True
+        self.__sourceList = True
+        
+    @property
+    def value(self):
+        if self.__dirty:
+            self.build()
+        return self.__sourceList
+
+    def build(self):
+        self.__sourceList = [
+            node
+            for node in self.__sourceDir.walk()
+            if any(node.abspath.endswith(ext) for ext in KNOWN_EXTENSIONS)]
+        self.__dirty = False
+
+sourceDir = build.File('Source')
+sourceList = SourceListNode(sourceDir)
+
 @build.subcommand
 def search(args):
     [pattern] = args
     matcher = re.compile(pattern.encode('ascii'))
-    for node in build.File('.').walk():
-        if any(node.abspath.endswith(ext) for ext in KNOWN_EXTENSIONS):
-            if matcher.search(node.data):
-                print('found!', node.abspath)
+    for node in sourceList.value:
+        if matcher.search(node.data):
+            print('found!', node.abspath)
