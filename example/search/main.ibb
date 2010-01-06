@@ -47,5 +47,9 @@ def search(args):
     [pattern] = args
     matcher = re.compile(pattern.encode('ascii'))
     for node in sourceList.value:
-        if matcher.search(node.data):
-            print('found!', node.abspath)
+        q = matcher.search(node.data)
+        if q:
+            d = node.data.decode('ascii')
+            s = q.span()
+            l = 1 + int(d[0:s[1]].count("\n"))
+            print(node.abspath + "(" + str(l) + "): " + d[s[0]:s[1]])
