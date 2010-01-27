@@ -160,6 +160,7 @@ bool startServer(const ibb_CHAR* argv0) {
         strncpy(last_slash, "/src/ibb.py", PATHLEN);
         ibb_CHAR* argv[] = {const_cast<ibb_CHAR*>(ibb_L("python")), executable_path, 0};
         ibb_CHAR* envp[] = {0};
+        printf("%s GO\n", argv[0]);
         return 0 == posix_spawnp(0, "python", 0, 0, argv, envp);
 #endif
     }
