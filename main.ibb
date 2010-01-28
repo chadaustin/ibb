@@ -1,11 +1,28 @@
+
+import sys
+
+stuff = {
+    'darwin':{
+        'app_extension':'',
+        'gcc':'g++',
+        'cflags':['-DMAC']},
+    'win32': {
+        'app_extension':'.exe',
+        'gcc':'g++3.exe',
+        'cflags':['-mno-cygwin', '-lws2-32', '-lshlwapi', '-s']},
+}
+
+def var(v):
+    return stuff[sys.platform][v]
+
 sources = [
     build.File('src/client/ibb.cpp'),
 ]
 targets = [
-    build.File('ibb.exe'),
+    build.File('ibb' + var('app_extension')),
 ]
 
 build.Command(
     targets,
     sources,
-    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32', '-lshlwapi'])
+    [var('gcc'), '-Wall', '-o', '{targets[0]}', '{sources}'] + var('cflags'))

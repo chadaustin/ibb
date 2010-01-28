@@ -10,7 +10,6 @@ class DirectoryWatcher:
         self.__onResetAll = onResetAll
 
         self.__thread = threading.Thread(target=self.__listen)
-        self.__thread.setDaemon(True)
         self.__thread.start()
 
     def __listen(self):

@@ -384,7 +384,7 @@ class Command(Node):
     def execute(self):
         # todo: use subprocess
         # opportunity for tools to hook output (for dependency scanning)
-        print('executing: %r', ' '.join(self.command))
+        print('executing: ', ' '.join(self.command))
         rv = os.system(' '.join(self.command))
         if rv:
             print('build failure:', rv)
