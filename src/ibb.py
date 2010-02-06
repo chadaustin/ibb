@@ -372,7 +372,7 @@ class File(Node):
     def build(self):
         if self.dirty:
             for dep in self.dependencies:
-                dep.execute()
+                dep.build()
             self.dirty = False
 
     def invalidate(self):
@@ -484,6 +484,8 @@ class Command(Node):
     def __init__(self, targets, sources, command, cwd=None, env=None):
         Node.__init__(self)
 
+        self.__dirty = True
+
         for node in targets:
             node.addDependency(self)
             self.addDependent(node)
@@ -500,14 +502,20 @@ class Command(Node):
             targets=list(map(fmt, targets)),
             sources=list(map(fmt, sources))))
 
-    def execute(self):
-        # todo: use subprocess
-        # opportunity for tools to hook output (for dependency scanning)
-        print('executing:', ' '.join(self.command))
-        rv = os.system(' '.join(self.command))
-        if rv:
-            print('build failure:', rv)
-            raise BuildFailed(rv)
+    def invalidate(self):
+        self.__dirty = True
+        Node.invalidate(self)
+
+    def build(self):
+        if self.__dirty:
+            # todo: use subprocess
+            # opportunity for tools to hook output (for dependency scanning)
+            print('executing:', ' '.join(self.command))
+            rv = os.system(' '.join(self.command))
+            if rv:
+                print('build failure:', rv)
+                raise BuildFailed(rv)
+            self.__dirty = False
 
 if __name__ == '__main__':
     BuildServer().main()

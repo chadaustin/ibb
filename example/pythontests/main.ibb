@@ -1,0 +1,15 @@
+# the idea is that a test run depends on command(footest.py) and
+# command(bartest.py).  footest.py depends on foo.py.  bartest depends
+# on bar.py.
+#
+# 1) how do we know footest.py depends on foo.py?
+# 2) how do we know when to scan for dependencies?
+
+footest = build.Command([], [build.File('footest.py')], ['C:/Python31/python', '{sources}'])
+bartest = build.Command([], [build.File('bartest.py')], ['C:/Python31/python', '{sources}'])
+
+@build.subcommand
+def test(args):
+    footest.build()
+    bartest.build()
+    print('done running tests')
