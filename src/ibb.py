@@ -242,6 +242,7 @@ class DirectoryWatcher:
                 False,
                 win32all.INFINITE)
             if waited == win32all.WAIT_OBJECT_0:
+                win32all.CancelIo(self.directoryHandle)
                 return
 
             lastReadSize = win32all.GetOverlappedResult(self.directoryHandle, self.overlapped, True)
