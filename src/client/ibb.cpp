@@ -69,7 +69,7 @@ bool startServer() {
             L"SOFTWARE\\Python\\PythonCore\\3.1\\InstallPath",
             python_path,
             &size);
-        if (success) {
+        if (!success) {
             // TODO: print error
             fprintf(stderr, "ibb *** failed to locate Python 3.1\n");
             return false;
