@@ -87,7 +87,7 @@ class BuildServer:
             def handle(handler):
                 print('got connection')
                 return self.handle(handler.rfile, handler.wfile)
-        self.server = socketserver.TCPServer(("localhost", IBB_PORT), Handler)
+        self.server = socketserver.TCPServer(("127.0.0.1", IBB_PORT), Handler)
         self.server.serve_forever()
 
 class TrayIcon:
