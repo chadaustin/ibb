@@ -36,6 +36,9 @@ int pprintf(const pchar* format, ...) {
 typedef int SOCKET; // old-school
 const SOCKET INVALID_SOCKET = -1;
 const ssize_t SOCKET_ERROR = -1;
+int closesocket(SOCKET socket) {
+    return close(socket);
+}
 
 // UTF-8
 
@@ -287,9 +290,10 @@ bool sendBuild(SOCKET connection, int argc, const pchar* argv[], clock_t start) 
     return true;
 }
 
-int wmain(int argc, const wchar_t* argv[]) {
+int pmain(int argc, const pchar* argv[]) {
     clock_t start = clock();
 
+#ifdef _WIN32
     WSADATA wsadata;
     if (0 != WSAStartup(2, &wsadata)) {
         return error("Failed to initialize winsock");
@@ -299,6 +303,7 @@ int wmain(int argc, const wchar_t* argv[]) {
         cleanup_t() {}
         ~cleanup_t() { WSACleanup(); }
     } cleanup;
+#endif
 
     //printf("Started winsock in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
     //fflush(stdout);
@@ -328,10 +333,20 @@ int wmain(int argc, const wchar_t* argv[]) {
 }
 
 // hack around mingw's lack of wmain support
+#ifdef _WIN32
+
 int main() {
     int argc;
     WCHAR** argv = CommandLineToArgvW(
         GetCommandLineW(),
         &argc);
-    return wmain(argc, const_cast<const wchar_t**>(argv));
+    return pmain(argc, const_cast<const wchar_t**>(argv));
 }
+
+#else
+
+int main(int argc, const char* argv[]) {
+    return pmain(argc, argv);
+}
+
+#endif
