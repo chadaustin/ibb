@@ -1,12 +1,13 @@
 #!/bin/sh
 
-die() {
-    echo "Error, aborting..."
-    exit 1
-}
+set -e
 
-g++ -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp -lws2_32 -lshlwapi || die
+if [ `uname` = 'Darwin' ]; then
+    clang++ -Wall -Werror -o ibb src/client/ibb.cpp
+else
+    g++ -Wall -s -mno-cygwin -o ibb.exe src/client/ibb.cpp -lws2_32 -lshlwapi
 
-cp ibb.exe ibb-bootstrap.exe || die
-./ibb-bootstrap.exe || die
-rm ibb-bootstrap.exe || die
+    cp ibb.exe ibb-bootstrap.exe
+    ./ibb-bootstrap.exe
+    rm ibb-bootstrap.exe
+fi
