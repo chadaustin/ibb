@@ -1,3 +1,5 @@
+// TODO: handle --stop specially in ibb.cpp.  it should wait for the server to shut down.
+
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -156,10 +158,11 @@ bool startServer() {
 
     char executablePath[pathSize];
     if (0 != _NSGetExecutablePath(executablePath, &pathSize)) {
-        fprintf(stderr, "ibb *** failed to get executable path");
+        fprintf(stderr, "ibb *** failed to get executable path\n");
         return false;
     }
 
+    // TODO: Mac deployment (port to Python 2?)
     /*
     wchar_t* last_slash = wcsrchr(executable_path, '\\');
     if (last_slash) {
@@ -177,33 +180,19 @@ bool startServer() {
         HINSTANCE result = ShellExecuteW(0, L"open", executable_path, executable_path, NULL, SW_SHOW);
         return result > reinterpret_cast<HINSTANCE>(32);
     } else {
-        // Launch server from Python.
-
-        WCHAR python_path[MAX_PATH + 1] = {0};
-        LONG size = sizeof(python_path);
-        LONG success = RegQueryValueW(
-            HKEY_LOCAL_MACHINE,
-            L"SOFTWARE\\Python\\PythonCore\\3.1\\InstallPath",
-            python_path,
-            &size);
-        if (!success) {
-            // TODO: print error
-            fprintf(stderr, "ibb *** failed to locate Python 3.1\n");
-            return false;
-        }
-
-        // TODO: use safe strings
-        wcsncat(python_path, L"\\python.exe", MAX_PATH);
-        
-        wcsncpy(last_slash, L"\\src\\ibb.py", MAX_PATH);
-        
-        // TODO: use CreateProcess instead of ShellExecute
-        // TODO: print error code
-        HINSTANCE result = ShellExecuteW(0, L"open", python_path, executable_path, NULL, SW_SHOW);
-        return result > reinterpret_cast<HINSTANCE>(32);
-    }
     */
-    return false;
+
+    // Launch server from Python.
+    // TODO: check for python3
+
+    if (0 != system("python3 src/ibb.py &")) {
+        fprintf(stderr, "ibb *** failed to run ibb.py\n");
+        return false;
+    }
+
+    // TODO: how do you wait for a process to be ready to accept connections?
+
+    return true;
 }
 
 #endif

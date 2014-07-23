@@ -8,7 +8,10 @@ import threading
 import time
 import queue
 
-import win32all
+try:
+    import win32all
+except ImportError:
+    win32all = None
 
 # int(md5.md5('ibb').hexdigest()[-4:], 16)
 IBB_PORT = 26830
@@ -21,7 +24,9 @@ class CommandHandler:
         self.systems = {}
     
     def handle(self, cwd, args, wfile):
+        print('args', args)
         if '--stop' in args:
+            print('raising StopServer')
             raise StopServer
         else:
             self.build(cwd, args[1:], wfile)
@@ -36,6 +41,11 @@ class CommandHandler:
             print('reusing build')
         buildSystem.build(targets, wfile)
 
+if os.name == 'posix':
+    PROTOCOL_ENCODING = 'utf-8'
+else:
+    PROTOCOL_ENCODING = 'utf-16le'
+
 class BuildServer:
     def __init__(self):
         self.commandHandler = CommandHandler()
@@ -49,8 +59,8 @@ class BuildServer:
             print('Build took', elapsed, 'seconds')
 
     def __handle(self, rfile, wfile):
-        rfile = io.TextIOWrapper(rfile, encoding='UTF-16LE')
-        wfile = io.TextIOWrapper(wfile, encoding='UTF-16LE')
+        rfile = io.TextIOWrapper(rfile, encoding=PROTOCOL_ENCODING)
+        wfile = io.TextIOWrapper(wfile, encoding=PROTOCOL_ENCODING)
 
         exitCode = -1
         cwd = None
@@ -65,7 +75,8 @@ class BuildServer:
                     exitCode = e.code
                 except StopServer:
                     # nasty way to shut down without deadlock
-                    self.server._BaseServer__serving = False
+                    print('shutting down server')
+                    self.server._BaseServer__shutdown_request = True
                     return
                 else:
                     exitCode = 0
@@ -273,6 +284,11 @@ class DirectoryWatcher:
                 #print(action, fileName)
                 self.onFileChange(mapping[action], os.path.join(self.directory, fileName))
             
+# TODO: move into another module, one implementation fo
+if win32all is None:
+    class DirectoryWatcher:
+        def __init__(self, directory, onFileChange, onResetAll):
+            pass
 
 class BuildSystem:
     def __init__(self, directory):

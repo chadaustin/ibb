@@ -1,3 +1,5 @@
+import sys
+
 sources = [
     build.File('src/client/ibb.cpp'),
 ]
@@ -5,7 +7,13 @@ targets = [
     build.File('ibb.exe'),
 ]
 
-build.Command(
-    targets,
-    sources,
-    ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32', '-lshlwapi'])
+if 'darwin' == sys.platform:
+    build.Command(
+        targets,
+        sources,
+        ['clang++', '-Wall', '-Werror', '-o', '{targets[0]}', '{sources}'])
+else:
+    build.Command(
+        targets,
+        sources,
+        ['g++-3.exe', '-Wall', '-s', '-mno-cygwin', '-o', '{targets[0]}', '{sources}', '-lws2_32', '-lshlwapi'])
