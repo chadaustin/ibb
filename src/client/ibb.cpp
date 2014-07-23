@@ -78,35 +78,35 @@ enum ConnectionRetry {
 
 int MAX_RETRY_TIME = 30; // seconds
 
-bool openServerConnection(SOCKET* s, ConnectionRetry retry) {
-    *s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (*s == INVALID_SOCKET) {
-        // TODO: print error code
-        error("Failed to create socket");
-        return false;
-    }
-
-    sockaddr_in address;
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = inet_addr("127.0.0.1");
-    address.sin_port = htons(IBB_PORT);
-    
+bool openServerConnection(SOCKET* out, ConnectionRetry retry) {
     time_t now = time(0);
     unsigned sleep = 10; // milliseconds
     for (;;) {
-        int result = connect(*s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-        if (result) {
+        SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (s == INVALID_SOCKET) {
+            perror("socket creation failed");
             return false;
+        }
+
+        sockaddr_in address;
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = inet_addr("127.0.0.1");
+        address.sin_port = htons(IBB_PORT);
+    
+        int result = connect(s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
+        if (result == 0) {
+            *out = s;
+            return true;
         }
         if (retry == RETRY && (time(0) - now) < MAX_RETRY_TIME) {
             usleep(sleep * 1000);
-            sleep = std::min(100u, sleep + sleep / 2);
+            sleep = std::min(150u, sleep + sleep / 2);
+            continue;
         } else {
-            break;
+            closesocket(s);
+            return false;
         }
     }
-
-    return true;
 }
 
 #ifdef _WIN32
@@ -201,27 +201,20 @@ bool startServer() {
     // Launch server from Python.
     // TODO: check for python3
 
-    // TODO: figure out how to spawn python3 directory
-    // without going through system()
-    /*
     pid_t child = fork();
     if (child == 0) {
         // TODO: src/ibb.py relative to this directory
-        execl("python3", "src/ibb.py", static_cast<char*>(0));
+        execl("/usr/bin/env", "/usr/bin/env", "python3", "src/ibb.py", static_cast<char*>(0));
         abort(); // unreachable under success
     } else if (child == -1) {
         return false;
     } else {
         return true;
     }
-    */
-
-    system("python3 src/ibb.py &");
 
     // TODO: how do you wait for a process to be ready to accept connections?
     // TODO: the internet seems to think "just try to connect for a while"
-
-    return true;
+    // if the server self-daemonized AFTER listening on the socket, we could waitpid() here
 }
 
 #endif
@@ -255,7 +248,20 @@ private:
     char* p;
 };
 
-bool sendBuild(SOCKET connection, int argc, const pchar* argv[], clock_t start) {
+struct Profiler {
+    Profiler() {
+        start = clock();
+    }
+
+    void record(const char* message) {
+        printf("%s in %0.4f ms\n", message, float(1000.0f * clock() - start) / CLOCKS_PER_SEC);
+    }
+
+private:
+    clock_t start;
+};
+
+bool sendBuild(SOCKET connection, int argc, const pchar* argv[], Profiler& profiler) {
     sendString(connection, PSTR("version: 1\n"));
 
     sendString(connection, PSTR("cwd: "));
@@ -279,8 +285,7 @@ bool sendBuild(SOCKET connection, int argc, const pchar* argv[], clock_t start) 
 
     sendString(connection, PSTR("build\n"));
 
-    //printf("Build sent in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
-    //fflush(stdout);
+    profiler.record("Build request sent");
 
     for (;;) {
         const int BUFFER_LENGTH = 1024;
@@ -302,14 +307,13 @@ bool sendBuild(SOCKET connection, int argc, const pchar* argv[], clock_t start) 
         pprintf(PSTR("%s"), buffer); // %*s sometimes wrote extra crap at the end
     }
 
-    //printf("Result recieved in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
-    //fflush(stdout);
+    profiler.record("Build result received");
 
     return true;
 }
 
 int pmain(int argc, const pchar* argv[]) {
-    clock_t start = clock();
+    Profiler profiler;
 
 #ifdef _WIN32
     WSADATA wsadata;
@@ -321,10 +325,9 @@ int pmain(int argc, const pchar* argv[]) {
         cleanup_t() {}
         ~cleanup_t() { WSACleanup(); }
     } cleanup;
-#endif
 
-    //printf("Started winsock in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
-    //fflush(stdout);
+    profiler.record("Started winsock");
+#endif
 
     SOCKET connection;
     if (!openServerConnection(&connection, NO_RETRY)) {
@@ -336,23 +339,22 @@ int pmain(int argc, const pchar* argv[]) {
         }
     }
 
-    //printf("Opened connection in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
-    //fflush(stdout);
+    profiler.record("Open connection to server");
 
-    if (!sendBuild(connection, argc, argv, start)) {
+    if (!sendBuild(connection, argc, argv, profiler)) {
         return error("Failed to submit build");
     }
 
+    // TODO: should this be shutdown?
     closesocket(connection);
 
-    //printf("Socket closed in %g seconds\n", float(clock() - start) / CLOCKS_PER_SEC);
-    //fflush(stdout);
+    profiler.record("Socket closed");
     return 0;
 }
 
-// hack around mingw's lack of wmain support
 #ifdef _WIN32
 
+// hack around mingw's lack of wmain support
 int main() {
     int argc;
     WCHAR** argv = CommandLineToArgvW(

@@ -26,7 +26,6 @@ class CommandHandler:
     def handle(self, cwd, args, wfile):
         print('args', args)
         if '--stop' in args:
-            print('raising StopServer')
             raise StopServer
         else:
             self.build(cwd, args[1:], wfile)
@@ -75,7 +74,6 @@ class BuildServer:
                     exitCode = e.code
                 except StopServer:
                     # nasty way to shut down without deadlock
-                    print('shutting down server')
                     self.server._BaseServer__shutdown_request = True
                     return
                 else:
@@ -98,7 +96,11 @@ class BuildServer:
             def handle(handler):
                 print('got connection')
                 return self.handle(handler.rfile, handler.wfile)
-        self.server = socketserver.TCPServer(("127.0.0.1", IBB_PORT), Handler)
+
+        class Server(socketserver.TCPServer):
+            allow_reuse_address = True
+
+        self.server = Server(("127.0.0.1", IBB_PORT), Handler)
         self.server.serve_forever()
 
 class TrayIcon:
