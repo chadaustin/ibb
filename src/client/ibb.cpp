@@ -1,8 +1,12 @@
 // TODO: handle --stop specially in ibb.cpp.  it should wait for the server to shut down.
 
-#include <stdio.h>
-#include <string.h>
+#include <algorithm>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <wchar.h>
 
 #ifdef _WIN32
 
@@ -59,11 +63,6 @@ int pprintf(const pchar* format, ...) {
 
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <wchar.h>
-
 // int(md5.md5('ibb').hexdigest()[-4:], 16)
 const int IBB_PORT = 26830;
 
@@ -72,7 +71,14 @@ int error(const char* msg) {
     return 1;
 }
 
-bool openServerConnection(SOCKET* s) {
+enum ConnectionRetry {
+    NO_RETRY,
+    RETRY
+};
+
+int MAX_RETRY_TIME = 30; // seconds
+
+bool openServerConnection(SOCKET* s, ConnectionRetry retry) {
     *s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (*s == INVALID_SOCKET) {
         // TODO: print error code
@@ -85,9 +91,19 @@ bool openServerConnection(SOCKET* s) {
     address.sin_addr.s_addr = inet_addr("127.0.0.1");
     address.sin_port = htons(IBB_PORT);
     
-    int result = connect(*s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
-    if (result) {
-        return false;
+    time_t now = time(0);
+    unsigned sleep = 10; // milliseconds
+    for (;;) {
+        int result = connect(*s, reinterpret_cast<sockaddr*>(&address), sizeof(address));
+        if (result) {
+            return false;
+        }
+        if (retry == RETRY && (time(0) - now) < MAX_RETRY_TIME) {
+            usleep(sleep * 1000);
+            sleep = std::min(100u, sleep + sleep / 2);
+        } else {
+            break;
+        }
     }
 
     return true;
@@ -185,12 +201,25 @@ bool startServer() {
     // Launch server from Python.
     // TODO: check for python3
 
-    if (0 != system("python3 src/ibb.py &")) {
-        fprintf(stderr, "ibb *** failed to run ibb.py\n");
+    // TODO: figure out how to spawn python3 directory
+    // without going through system()
+    /*
+    pid_t child = fork();
+    if (child == 0) {
+        // TODO: src/ibb.py relative to this directory
+        execl("python3", "src/ibb.py", static_cast<char*>(0));
+        abort(); // unreachable under success
+    } else if (child == -1) {
         return false;
+    } else {
+        return true;
     }
+    */
+
+    system("python3 src/ibb.py &");
 
     // TODO: how do you wait for a process to be ready to accept connections?
+    // TODO: the internet seems to think "just try to connect for a while"
 
     return true;
 }
@@ -298,11 +327,11 @@ int pmain(int argc, const pchar* argv[]) {
     //fflush(stdout);
 
     SOCKET connection;
-    if (!openServerConnection(&connection)) {
+    if (!openServerConnection(&connection, NO_RETRY)) {
         if (!startServer()) {
             return error("Failed to start server");
         }
-        if (!openServerConnection(&connection)) {
+        if (!openServerConnection(&connection, RETRY)) {
             return error("Failed to connect to server");
         }
     }
