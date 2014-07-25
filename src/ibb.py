@@ -1,12 +1,12 @@
 import contextlib
 import io
 import os
-import socketserver
+import SocketServer
 import string
 import sys
 import threading
 import time
-import queue
+import Queue
 
 try:
     import win32all
@@ -58,8 +58,8 @@ class BuildServer:
             print('Build took', elapsed, 'seconds')
 
     def __handle(self, rfile, wfile):
-        rfile = io.TextIOWrapper(rfile, encoding=PROTOCOL_ENCODING)
-        wfile = io.TextIOWrapper(wfile, encoding=PROTOCOL_ENCODING)
+        #rfile = io.TextIOWrapper(rfile, encoding=PROTOCOL_ENCODING)
+        #wfile = io.TextIOWrapper(wfile, encoding=PROTOCOL_ENCODING)
 
         exitCode = -1
         cwd = None
@@ -92,12 +92,12 @@ class BuildServer:
         wfile.write('exit code: %s\n' % (exitCode,))
 
     def main(self):
-        class Handler(socketserver.StreamRequestHandler):
+        class Handler(SocketServer.StreamRequestHandler):
             def handle(handler):
                 print('got connection')
                 return self.handle(handler.rfile, handler.wfile)
 
-        class Server(socketserver.TCPServer):
+        class Server(SocketServer.TCPServer):
             allow_reuse_address = True
 
         self.server = Server(("127.0.0.1", IBB_PORT), Handler)
@@ -186,7 +186,7 @@ class DirectoryWatcher:
             win32all.FILE_FLAG_BACKUP_SEMANTICS | win32all.FILE_FLAG_OVERLAPPED,
             None)
 
-        self.bufferQueue = queue.Queue()
+        self.bufferQueue = Queue.Queue()
 
         self.overlapped = win32all.OVERLAPPED()
         self.overlapped.hEvent = win32all.CreateEvent(None, False, False, None)
@@ -286,7 +286,7 @@ class DirectoryWatcher:
                 #print(action, fileName)
                 self.onFileChange(mapping[action], os.path.join(self.directory, fileName))
             
-# TODO: move into another module, one implementation fo
+# TODO: move into another module, one implementation for each platform
 if win32all is None:
     class DirectoryWatcher:
         def __init__(self, directory, onFileChange, onResetAll):

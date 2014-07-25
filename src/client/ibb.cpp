@@ -198,13 +198,12 @@ bool startServer() {
     } else {
     */
 
-    // Launch server from Python.
-    // TODO: check for python3
+    // Launch server from Python source.
 
     pid_t child = fork();
     if (child == 0) {
         // TODO: src/ibb.py relative to this directory
-        execl("/usr/bin/env", "/usr/bin/env", "python3", "src/ibb.py", static_cast<char*>(0));
+        execl("/usr/bin/env", "/usr/bin/env", "python", "src/ibb.py", static_cast<char*>(0));
         abort(); // unreachable under success
     } else if (child == -1) {
         return false;
@@ -254,7 +253,7 @@ struct Profiler {
     }
 
     void record(const char* message) {
-        printf("%s in %0.4f ms\n", message, float(1000.0f * clock() - start) / CLOCKS_PER_SEC);
+        //printf("%s in %0.4f ms\n", message, float(1000.0f * clock() - start) / CLOCKS_PER_SEC);
     }
 
 private:
