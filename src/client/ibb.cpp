@@ -199,7 +199,6 @@ bool startServer() {
     */
 
     // Launch server from Python source.
-
     pid_t child = fork();
     if (child == 0) {
         // TODO: src/ibb.py relative to this directory

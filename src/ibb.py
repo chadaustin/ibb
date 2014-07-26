@@ -164,7 +164,7 @@ class BuildConfig:
 class BuildSystem:
     def __init__(self, directory):
         self.directory = directory
-        self.directoryWatcher = DirectoryWatcher(directory, self.onFileChange, self.onResetAll)
+        self.directoryWatcher = directorywatcher.DirectoryWatcher(directory, self.__onFileChange, self.__onResetAll)
         self.fileSystem = FileSystem(directory)
         self.__buildNode = self.fileSystem.getNode('main.ibb')
         self.buildConfig = BuildConfig(self.fileSystem)
@@ -214,10 +214,10 @@ class BuildSystem:
         for node in self.buildConfig.nodes:
             node.build()
 
-    def onFileChange(self, change_type, absolute_path):
+    def __onFileChange(self, absolute_path):
         self.fileSystem.getNode(absolute_path).invalidate()
 
-    def onResetAll(self):
+    def __onResetAll(self):
         #self.fileSystem.dirtyAll()
         pass
 
