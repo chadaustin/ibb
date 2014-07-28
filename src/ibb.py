@@ -22,7 +22,6 @@ class CommandHandler:
         self.systems = {}
     
     def handle(self, cwd, args, wfile):
-        print('args', args)
         if '--stop' in args:
             raise StopServer
         else:
@@ -32,10 +31,7 @@ class CommandHandler:
         try:
             buildSystem = self.systems[cwd]
         except KeyError:
-            print('loading build')
             buildSystem = self.systems[cwd] = BuildSystem(cwd)
-        else:
-            print('reusing build')
         buildSystem.build(targets, wfile)
 
 if os.name == 'posix':
@@ -53,7 +49,6 @@ class BuildServer:
             self.__handle(rfile, wfile)
         finally:
             elapsed = time.time() - start
-            print('Build took', elapsed, 'seconds')
 
     def __handle(self, rfile, wfile):
         #rfile = io.TextIOWrapper(rfile, encoding=PROTOCOL_ENCODING)
@@ -92,7 +87,6 @@ class BuildServer:
     def main(self):
         class Handler(SocketServer.StreamRequestHandler):
             def handle(handler):
-                print('got connection')
                 return self.handle(handler.rfile, handler.wfile)
 
         class Server(SocketServer.TCPServer):
@@ -398,7 +392,7 @@ class Command(Node):
         if self.__dirty:
             # todo: use subprocess
             # opportunity for tools to hook output (for dependency scanning)
-            print('executing:', ' '.join(self.command))
+            print 'executing:', ' '.join(self.command)
             rv = os.system(' '.join(self.command))
             if rv:
                 print('build failure:', rv)
